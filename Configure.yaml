@@ -1,0 +1,50 @@
+probes:
+ T: 0
+ EC: 1 
+ PH: 2
+ DO: 3
+
+pinZero:
+ T: 0
+ EC: 0
+ PH: 1
+ DO: 1
+
+pinOne:
+ T: 0
+ EC: 1
+ PH: 0
+ DO: 1 
+
+units:
+ T: C
+ EC: uS
+ PH: NULL
+ DO: mg/L
+ 
+highRange:
+ T: 30
+ EC: 1800
+ PH: 7.6
+ DO: 18
+
+lowRange:
+ T: 27
+ EC: 1350
+ PH: 6.7
+ DO: 6
+ 
+files:
+ T: r1_tp_data.csv
+ EC: r1_cd_data.csv
+ PH: r1_ph_data.csv
+ DO: r1_do_data.csv
+
+daysStored:
+  days: 30
+
+readsPerDay:
+  reads: 24
+
+needUpdate:
+  update: yes
