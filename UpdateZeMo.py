@@ -46,6 +46,7 @@ lowDO = grabFormValues("lowRange", "DO", "dOLower")
 upperDO = grabFormValues("highRange", "DO", "dOUpper")
 readsPerDay = grabFormValues("readsPerDay", "reads", "readsPerDay")
 daysToKeep = grabFormValues("daysStored", "days", "daysToKeep")
+condProbeType = grabFormValues("probeType", "EC", "condProbeType")
 
 text_file = open("/home/pi/FishCode/EmailList.txt", "r")
 
@@ -333,6 +334,12 @@ return false;
                         <input type="text" name="daysToKeep" id="{19}" placeholder="{20}">
                     </td>
                 </tr>
+                <tr>
+                    <td>Cond Probe Type: </td>
+                    <td>
+                        <input type="text" name="condProbeType" id="{21}" placeholder="{22}">
+                    </td>
+                </tr>
 
         </table>
         <br>
@@ -361,7 +368,7 @@ return false;
 
 print(printString.format(lowCond, upperCond, lowDO, upperDO, lowTemp, upperTemp, lowpH, upperpH, 
                          emailTable.format(), lowCond, upperCond, lowDO, upperDO, lowTemp, upperTemp, lowpH, upperpH, 
-                         readsPerDay, readsPerDay, daysToKeep, daysToKeep))
+                         readsPerDay, readsPerDay, daysToKeep, daysToKeep, condProbeType, condProbeType))
 
 # TODO clean up code, so repetitive stuff is recycled (remove recurring code) - javascript section
 # TODOlow can't submit other values or remove emails with a bad email address in 'add' text block
