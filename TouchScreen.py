@@ -44,6 +44,7 @@ emailFile.close()
 class App(object):
     def __init__(self):
         print("ZēMō Initializing")
+        
         self.emailer = Emailer()
 
         try:
@@ -63,10 +64,10 @@ class App(object):
         self.timeList = []
         self.waitTime = 1
 
-        self.ph = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "PH")
-        self.conductivity = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "C")
-        self.dOxygen = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "DO")
-        self.temperature = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "T")
+        self.ph = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "PH", "K,1.0")
+        self.conductivity = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "C", "K,1.0")
+        self.dOxygen = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "DO", "K,1.0")
+        self.temperature = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "T", "K,1.0")
         self.sensorList.append(self.ph)
         self.sensorList.append(self.conductivity)
         self.sensorList.append(self.dOxygen)
@@ -132,7 +133,7 @@ class App(object):
             except Exception:
                 pass
             self.ph = Sensors("pH", cfg["units"]["PH"], cfg["highRange"]["PH"], cfg["lowRange"]["PH"], "r1_ph_data.csv", 
-                         2, 99, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "PH")
+                         2, 99, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "PH", "")
             self.sensorList.append(self.ph)
             self.ph.getRead()
             self.ph.currRead = str(self.ph.getRead())
@@ -155,7 +156,7 @@ class App(object):
             except Exception:
                 pass
             self.conductivity = Sensors("Cond", cfg["units"]["EC"], cfg["highRange"]["EC"], cfg["lowRange"]["EC"], "r1_cd_data.csv", 
-                         1, 100, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "EC")
+                         1, 100, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "EC", cfg["probeType"]["EC"])
             self.sensorList.append(self.conductivity)
             self.conductivity.getRead()
             read2 = self.conductivity.getRead().split(",")[0]
@@ -179,7 +180,7 @@ class App(object):
             except Exception:
                 pass
             self.dOxygen = Sensors("DO", cfg["units"]["DO"], cfg["highRange"]["DO"], cfg["lowRange"]["DO"], "r1_do_data.csv", 
-                             3, 97, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "DO")
+                             3, 97, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "DO", "")
             self.sensorList.append(self.dOxygen)
             self.dOxygen.getRead()
             self.dOxygen.currRead = str(self.dOxygen.getRead())
@@ -198,7 +199,7 @@ class App(object):
     def createTemperatureSensor(self):
         try:
             self.temperature = Sensors("Temp", cfg["units"]["T"], cfg["highRange"]["T"], cfg["lowRange"]["T"], "r1_tp_data.csv", 
-                             0, 102, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "T")
+                             0, 102, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "T", "")
             self.sensorList.append(self.temperature)
             self.temperature.getRead()
             self.temperature.currRead = str(self.temperature.getRead())
@@ -559,7 +560,7 @@ class App(object):
 
     # Conductivity Calibration
     def cond_calibrate_loop(self):
-            #try:
+        try:
             pg.display.update()
             myfont = pg.font.SysFont("monospace", 20)
             color = pg.Color("yellow")
@@ -694,7 +695,7 @@ class App(object):
                             self.finishEvent = False
                             self.calNum = "-1111"
                             self.calibrateEventNum = 0
-            """except:
+        except:
             self.screen.fill((0,0,0))
             self.screen.blit(failCal, failCalpos)
             pg.display.update()
@@ -702,7 +703,7 @@ class App(object):
             stepNum = 0
             self.finishEvent = False
             self.calNum = "-1111"
-            self.calibrateEventNum = 0"""
+            self.calibrateEventNum = 0
 
     # Temperature Calibration
     def temp_calibrate_loop(self):
