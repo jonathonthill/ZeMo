@@ -2,20 +2,6 @@
 
 Open Source Zebrafish Monitoring System
 
-# Example
-
-This is a regular paragraph.
-
-<table>
-    <tr>
-        <td>Foo</td>
-    </tr>
-</table>
-
-This is another regular paragraph.
-
-![Output sample](https://example.com)
-
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
