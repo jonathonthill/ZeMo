@@ -4,7 +4,17 @@ Open Source Zebrafish Monitoring System
 
 # Example
 
-![Output sample](https://github.com/ajasmin/camstudio-mousedown-highlight/raw/master/android_vid_test.gif)
+This is a regular paragraph.
+
+<table>
+    <tr>
+        <td>Foo</td>
+    </tr>
+</table>
+
+This is another regular paragraph.
+
+![Output sample](https://example.com)
 
 ## Getting Started
 
