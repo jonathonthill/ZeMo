@@ -4,8 +4,7 @@ Open Source Zebrafish Monitoring System
 
 # Example
 
-<img src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_120x44dp.png" style="">
-
+![Output sample](https://github.com/ajasmin/camstudio-mousedown-highlight/raw/master/android_vid_test.gif)
 
 ## Getting Started
 
