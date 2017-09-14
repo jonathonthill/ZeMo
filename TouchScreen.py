@@ -1102,6 +1102,9 @@ class App(object):
                             prob.currRead = str(avgRead2)
                 elif self.waitTime < currMin and self.waitTime != 0:
                     self.takeReadFlag = True
+            except Exception as e:
+                pass
+            try:
                 if cfg["needUpdate"]["update"] == "yes":
                     self.createSensors()
                     cfg["needUpdate"]["update"] = "no"
@@ -1422,10 +1425,10 @@ class App(object):
                                     for part in self.sensorList:
                                         if part.sensorTag == self.sensor:
                                             if ulrange == "lowRange":
-                                                if float(self.newValue) < part.highRange and float(self.newValue) > 0:
+                                                if float(self.newValue) < float(part.highRange) and float(self.newValue) > 0:
                                                     part.lowRange = self.newValue
                                             else:
-                                                if float(self.newValue) > part.lowRange and float(self.newValue) > 0:
+                                                if float(self.newValue) > float(part.lowRange) and float(self.newValue) > 0:
                                                     part.highRange = self.newValue
                                     with open("/home/pi/FishCode/Configure.yaml", "w") as f:
                                         yaml.dump(cfg, f)
