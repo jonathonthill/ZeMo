@@ -24,13 +24,13 @@ units:
  
 highRange:
  T: 30
- EC: 1800
+ EC: 700
  PH: 7.6
  DO: 18
 
 lowRange:
  T: 27
- EC: 1350
+ EC: 450
  PH: 6.7
  DO: 6
  
