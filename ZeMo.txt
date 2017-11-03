@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=ZeMo
+Type=Application
+Comment=Start ZeMo
+Categories=Application
+Exec=/home/pi/FishCode/ZeMo.sh
+Terminal=false
+StartupNotify=false
+Icon=/home/pi/FishCode/fish.png

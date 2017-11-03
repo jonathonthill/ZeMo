@@ -1,0 +1,19 @@
+[Desktop Entry]
+
+Name=ZeMo
+
+Type=Application
+
+Comment=Start ZeMo
+
+TryExec=/home/pi/FishCode/TouchScreen.py
+
+Exec=sudo python3.4 /home/pi/FishCode/TouchScreen.py
+
+Terminal=false
+
+StartupNotify=false
+
+Icon=/home/pi/FishCode/fish.png
+
+Categories=Application;
