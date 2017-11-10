@@ -16,11 +16,11 @@ import logging
 import subprocess
 import socket
 import yaml
-from multiprocessing import Process
-from threading import Lock
+from threading import Thread
+#from multiprocessing.dummy import Pool as ThreadPool
+#from threading import Lock
 
 # Configures parameters
-
 CAPTION = "Current Reads"
 SCREEN_SIZE = (320, 240)
 SCREEN_WIDTH = 320
@@ -40,11 +40,23 @@ with open("/home/pi/FishCode/EmailList.txt", "r") as f:
            addressList.append(cleanLine)
 emailFile.close()
 
+valuesCond = {'token' : '1234567abcdefg',
+    'metric' : 'cd.csv'} #do.csv or cd.csv or tp.csv or ph.csv
+valuesDO = {'token' : '1234567abcdefg',
+    'metric' : 'do.csv'}
+valuespH = {'token' : '1234567abcdefg',
+    'metric' : 'ph.csv'}
+valuesTemp = {'token' : '1234567abcdefg',
+    'metric' : 'tp.csv'}
+urlCond = 'https://zemoproject.org/djhill/rack1/metrics/cd' #this does conductivity posting, need one for each probe type
+urlpH = 'https://zemoproject.org/djhill/rack1/metrics/ph'
+urlDO = 'https://zemoproject.org/djhill/rack1/metrics/do'
+urlTemp = 'https://zemoproject.org/djhill/rack1/metrics/tp'
 
 class App(object):
     def __init__(self):
         print("ZēMō Initializing")
-        
+
         self.emailer = Emailer()
 
         try:
@@ -59,15 +71,16 @@ class App(object):
             self.wlan0 = self.emailer.get_interface_ipaddress("wlan0")
         except:
             self.wlan0 = "none"
+
         
         self.sensorList = []
         self.timeList = []
         self.waitTime = 1
 
-        self.ph = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "PH", "K,1.0")
-        self.conductivity = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "C", "K,1.0")
-        self.dOxygen = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "DO", "K,1.0")
-        self.temperature = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "T", "K,1.0")
+        self.ph = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "PH", "K,1.0","","")
+        self.conductivity = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "C", "K,1.0","","")
+        self.dOxygen = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "DO", "K,1.0","","")
+        self.temperature = Sensors("", "", 0, 0, "", 0, -1, addressList, 0, 0, "T", "K,1.0","","")
         self.sensorList.append(self.ph)
         self.sensorList.append(self.conductivity)
         self.sensorList.append(self.dOxygen)
@@ -82,7 +95,7 @@ class App(object):
             self.daysToKeep = cfg["daysStored"]["days"]
         except Exception as readFail:
             self.daysToKeep = 30
-        self.ip = self.eth0 + ", " + self.wlan0
+        #self.ip = self.eth0 + ", " + self.wlan0
         self.screen = pg.display.get_surface()
         self.background = pygame.Surface(self.screen.get_size())
         self.done = False
@@ -105,6 +118,21 @@ class App(object):
         self.backBtn = pg.Rect(5,5,35,35)
         self.middleBtn = pg.Rect(83.75,45,152.5,92.5)
         self.settingsBtn = pg.Rect(280,5,35,35)
+
+        """self.one = pg.Rect(5,45,58,70)
+        self.two = pg.Rect(68,45,58,70)
+        self.three = pg.Rect(131,45,58,70)
+        self.four = pg.Rect(194,45,58,70)
+        self.five = pg.Rect(257,45,58,70)
+        self.six = pg.Rect(5,120,58,70)
+        self.seven = pg.Rect(68,120,58,70)
+        self.eight = pg.Rect(131,120,58,70)
+        self.nine = pg.Rect(194,120,58,70)
+        self.zero = pg.Rect(257,120,58,70)
+        self.period = pg.Rect(257,195,58,35)
+        self.submitBtn = pg.Rect(194,195,58,35)
+        self.deleteBtn = pg.Rect(257,5,58,35)"""
+
         self.eventNum = 0
         self.subEventNum = 0
         self.calibrateEventNum = 0
@@ -133,7 +161,7 @@ class App(object):
             except Exception:
                 pass
             self.ph = Sensors("pH", cfg["units"]["PH"], cfg["highRange"]["PH"], cfg["lowRange"]["PH"], "r1_ph_data.csv", 
-                         2, 99, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "PH", "")
+                         2, 99, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "PH", "", urlpH, valuespH)
             self.sensorList.append(self.ph)
             self.ph.getRead()
             self.ph.currRead = str(self.ph.getRead())
@@ -156,7 +184,8 @@ class App(object):
             except Exception:
                 pass
             self.conductivity = Sensors("Cond", cfg["units"]["EC"], cfg["highRange"]["EC"], cfg["lowRange"]["EC"], "r1_cd_data.csv", 
-                         1, 100, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "EC", cfg["probeType"]["EC"])
+                         1, 100, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "EC", cfg["probeType"]["EC"], 
+                         urlCond, valuesCond)
             self.sensorList.append(self.conductivity)
             self.conductivity.getRead()
             read2 = self.conductivity.getRead().split(",")[0]
@@ -180,7 +209,7 @@ class App(object):
             except Exception:
                 pass
             self.dOxygen = Sensors("DO", cfg["units"]["DO"], cfg["highRange"]["DO"], cfg["lowRange"]["DO"], "r1_do_data.csv", 
-                             3, 97, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "DO", "")
+                             3, 97, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "DO", "", urlDO, valuesDO)
             self.sensorList.append(self.dOxygen)
             self.dOxygen.getRead()
             self.dOxygen.currRead = str(self.dOxygen.getRead())
@@ -199,7 +228,7 @@ class App(object):
     def createTemperatureSensor(self):
         try:
             self.temperature = Sensors("Temp", cfg["units"]["T"], cfg["highRange"]["T"], cfg["lowRange"]["T"], "r1_tp_data.csv", 
-                             0, 102, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "T", "")
+                             0, 102, addressList, cfg["daysStored"]["days"], cfg["readsPerDay"]["reads"], "T", "", urlTemp, valuesTemp)
             self.sensorList.append(self.temperature)
             self.temperature.getRead()
             self.temperature.currRead = str(self.temperature.getRead())
@@ -229,8 +258,7 @@ class App(object):
             probes.limitFileSize()
 
     # Settings
-    def settings_event_loop(self):
-            pg.display.update()
+    def settings_event_screen(self):
             myfont = pg.font.SysFont("monospace", 20)
             color = pg.Color("yellow")
             titleip = myfont.render("ip Address:", 1, color)#TODO try to do a newline character with info, reduces code length
@@ -291,29 +319,31 @@ class App(object):
             textpos.centerx = self.btmRight.centerx
             textpos.centery = self.btmRight.centery + 10
             self.screen.blit(readsPerDay, textpos)
-            while self.finishEvent and not self.done:
-                self.checkTime()
-                pg.display.update()     
-                for event in pg.event.get():
-                    if(self.finishEvent == True):
-                        if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
-                            self.done = True
-                            self.finishEvent = False
-                        elif event.type == pg.MOUSEBUTTONDOWN:
-                            if self.topRight.collidepoint(event.pos):
-                                self.createSensors()
-                            elif self.backBtn.collidepoint(event.pos):
-                                self.eventNum = 0
-                                self.finishEvent = False
-                            elif self.btmLeft.collidepoint(event.pos):
-                                self.subEventNum = 4
-                                self.finishEvent = False
-                            elif self.btmRight.collidepoint(event.pos):
-                                self.subEventNum = 3
-                                self.finishEvent = False
+
+    def settings_event(self):
+        while(1):
+            self.settings_event_screen()
+            pg.display.update()
+            pg.event.wait()
+            for event in pg.event.get():
+                try:
+                    if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
+                        sys.exit()
+                    elif event.type == pg.MOUSEBUTTONDOWN:
+                        if self.topRight.collidepoint(event.pos):
+                            self.createSensors()
+                        elif self.backBtn.collidepoint(event.pos):
+                            return
+                        elif self.btmLeft.collidepoint(event.pos):
+                            self.numpad_event("Enter Days Stored", "", 4)
+                        elif self.btmRight.collidepoint(event.pos):
+                            self.numpad_event("Enter Reads/Day", "", 3)
+                        elif self.backBtn.collidepoint(event.pos):
+                            return
                         elif event.type in (pg.KEYUP, pg.KEYDOWN):
                             self.keys = pg.key.get_pressed()
-                            self.finishEvent = False
+                except:
+                    continue
 
     # Attempts to do a command 3 times before failing
     def tryThree(self, command, sensor):
@@ -324,7 +354,7 @@ class App(object):
         failRetrypos.centerx = self.background.get_rect().centerx
         failRetrypos.centery = self.background.get_rect().centery
         maxTries = 3
-        for i in range (0, maxTries):
+        for i in range(0, maxTries):
             if sensor.calibrateSensor(command) == "Success":
                 return True
         self.screen.fill((0,0,0))
@@ -459,7 +489,7 @@ class App(object):
                                                 self.screen.blit(step2, step2pos)
                                                 self.screen.blit(step3, step3pos)
                                                 self.screen.blit(step5, step5pos)
-                                                pg.display.update()  
+                                                pg.display.update()
                                     elif self.pHCalStep == 1:
                                         if self.tryThree('CAL,mid,' + str(midPt), self.ph):
                                             self.pHCalStep = 2
@@ -568,7 +598,7 @@ class App(object):
             titleScreen = myfont.render("Calibrate Conductivity", 1, color)
             myfont.set_underline(False)
             myfont = pg.font.SysFont("monospace", 18)
-            calibText= myfont.render("Calibrate", 1, color)
+            calibText = myfont.render("Calibrate", 1, color)
             myfont = pg.font.SysFont("monospace", 15)
             step1 = myfont.render("1. Pour solution in cup", 1, color)
             step2 = myfont.render("2. Shake probe", 1, color)
@@ -667,7 +697,9 @@ class App(object):
                                             lCal = float(lowCal)
                                             hCal = float(highCal)
                                             tempRead = 0.0
-                                            # Takes reads until 2 consecutive reads within the 40% variance are less than 10 apart
+                                            # Takes reads until 2 consecutive
+                                            # reads within the 40% variance are
+                                            # less than 10 apart
                                             for i in range(0,15):
                                                 if(stepNum != 3):
                                                     calRead = self.conductivity.getRead()
@@ -715,7 +747,7 @@ class App(object):
             titleScreen = myfont.render("Calibrate Temperature", 1, color)
             myfont.set_underline(False)
             myfont = pg.font.SysFont("monospace", 18)
-            calibText= myfont.render("Calibrate", 1, color)
+            calibText = myfont.render("Calibrate", 1, color)
             myfont = pg.font.SysFont("monospace", 15)
             step1 = myfont.render("1. Put probe in solution", 1, color)
             step2 = myfont.render("2. Enter solution temperature", 1, color)
@@ -758,7 +790,8 @@ class App(object):
                     self.screen.blit(step2, step2pos)
                     self.screen.blit(step3, step3pos)                                       
                 pg.display.update()  
-
+                #change this to empty the events in event.get() so it doesn't
+                #grab the same click for multiple screens
                 for event in pg.event.get():
                     if(self.finishEvent == True):
                         if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
@@ -819,7 +852,7 @@ class App(object):
             titleScreen = myfont.render("Calibrate dOxygen", 1, color)
             myfont.set_underline(False)
             myfont = pg.font.SysFont("monospace", 18)
-            calibText= myfont.render("Calibrate", 1, color)
+            calibText = myfont.render("Calibrate", 1, color)
             myfont = pg.font.SysFont("monospace", 15)
             step1 = myfont.render("1. Remove cap", 1, color)
             step2 = myfont.render("2. Let probe sit 30 seconds", 1, color)
@@ -891,6 +924,8 @@ class App(object):
                     pg.gfxdraw.rectangle(self.screen, self.btmLeft, color)
                 self.screen.blit(titleScreen, titlepos)
                                        
+                pg.display.update()
+                pg.event.wait()
                 for event in pg.event.get():
                     if(self.finishEvent == True):
                         if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
@@ -963,8 +998,8 @@ class App(object):
             self.calibrateEventNum = 0
 
     # The main menu
-    def main_menu_event_loop(self):
-            pg.display.update()
+    def main_menu_screen(self):
+            self.screen.fill((0,0,0))
             myfont = pg.font.SysFont("monospace", 20)
             color = pg.Color("green")
             pHRead = myfont.render(self.ph.currRead, 1, color)
@@ -1020,34 +1055,6 @@ class App(object):
             textpos.centerx = self.background.get_rect().centerx
             textpos.centery = self.background.get_rect().top + 20
             self.screen.blit(titleScreen, textpos)
-            while self.finishEvent and not self.done:
-                self.checkTime()
-                pg.display.update()
-                for event in pg.event.get():
-                    if(self.finishEvent == True):
-                        if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
-                            self.done = True
-                            self.finishEvent = False
-                            break
-                        elif event.type == pg.MOUSEBUTTONDOWN:
-                            if self.topLeft.collidepoint(event.pos):
-                                self.eventNum = 1
-                                self.finishEvent = False
-                            elif self.topRight.collidepoint(event.pos):
-                                self.eventNum = 2
-                                self.finishEvent = False
-                            elif self.btmRight.collidepoint(event.pos):
-                                self.eventNum = 3
-                                self.finishEvent = False
-                            elif self.btmLeft.collidepoint(event.pos):
-                                self.eventNum = 4
-                                self.finishEvent = False
-                            elif self.settingsBtn.collidepoint(event.pos):
-                                self.eventNum = 5
-                                self.finishEvent = False
-                        elif event.type in (pg.KEYUP, pg.KEYDOWN):
-                            self.keys = pg.key.get_pressed()
-                            self.finishEvent = False
 
     def getLowRange(self, sensor, sensorTag):
         if sensor in self.sensorList:
@@ -1061,7 +1068,9 @@ class App(object):
         else:
             return cfg["highRange"][sensorTag]
 
-    def checkTime(self):
+    #TODO lock the reads, so no new commands override the taking of reads
+    def checkTime_loop(self):
+        while(1):
             try:
                 currMin = datetime.now().minute
                 currHour = datetime.now().hour
@@ -1076,18 +1085,9 @@ class App(object):
                 else:
                     uCurrTime = currHour + ".0" + str(round(currMin, 0))
                 currTime = str(uCurrTime)
-                #potential increase to speed, try: self.timeList.index(currTime)
-                if(currTime in self.timeList and self.takeReadFlag is True) or currTime == "0.0":
-                    try:
-                        self.screen.fill((0,0,0))
-                        takeReadsText = myfont.render("Taking Reads", 1, color)
-                        takeReadsTextpos = takeReadsText.get_rect()
-                        takeReadsTextpos.centerx = self.background.get_rect().centerx
-                        takeReadsTextpos.centery = self.background.get_rect().centery
-                        self.screen.blit(takeReadsText, takeReadsTextpos)
-                        pg.display.update()
-                    except:
-                        print("Failed to print to screen")            
+                #potential increase to speed, try:
+                #self.timeList.index(currTime)
+                if(currTime in self.timeList and self.takeReadFlag is True) or currTime == "0.0":           
                     self.takeReadFlag = False
                     self.waitTime = currMin + 1
                     if(self.waitTime > 59):
@@ -1097,7 +1097,7 @@ class App(object):
                             reads = prob.takeRead()
                             reads = reads[:-1]
                             [float(i) for i in reads]
-                            avgRead = sum(reads)/len(reads)
+                            avgRead = sum(reads) / len(reads)
                             avgRead2 = round(avgRead,1)
                             prob.currRead = str(avgRead2)
                 elif self.waitTime < currMin and self.waitTime != 0:
@@ -1123,6 +1123,7 @@ class App(object):
                     self.update_reads_per_day()
             except Exception as e:
                 pass
+            time.sleep(50)
 
     def update_reads_per_day(self):
         self.timeList = []
@@ -1134,15 +1135,14 @@ class App(object):
             if i < 24:
                 addHour = int(i)
                 y = i % 1
-                j = ( y * 60 ) / 100
+                j = (y * 60) / 100
                 addTime = addHour + round(j, 2)
                 addThis = str(round(addTime, 2))
                 self.timeList.append(addThis)
-        
 
     # Update range values
-    def update_event_loop(self, sensorName, sensorTag, sensor):
-            pg.display.update()
+    def update_event_screen(self, sensorName, sensorTag, sensor):
+            self.screen.fill((0,0,0))
             myfont = pg.font.SysFont("monospace", 20)
             color = pg.Color("orange")
             myfont.set_underline(True)
@@ -1197,74 +1197,120 @@ class App(object):
             textpos.centerx = self.btmLeftSmall.centerx
             textpos.centery = self.btmLeftSmall.centery + 10
             self.screen.blit(lowRange, textpos)
-            while self.finishEvent:
-                self.checkTime()
-                pg.display.update()     
-                for event in pg.event.get():
-                    if(self.finishEvent == True):
-                        if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
-                            self.done = True
-                            self.finishEvent = False
-                        elif event.type == pg.MOUSEBUTTONDOWN:
-                            if self.btmLeftSmall.collidepoint(event.pos):
-                                self.sensor = sensorTag
-                                self.subEventNum = 1
-                                self.finishEvent = False
-                            elif self.middleBtnSmall.collidepoint(event.pos):
-                                try:
-                                    self.screen.fill((0,0,0))
-                                    takeReadsText = myfont.render("Taking Reads", 1, color)
-                                    takeReadsTextpos = takeReadsText.get_rect()
-                                    takeReadsTextpos.centerx = self.background.get_rect().centerx
-                                    takeReadsTextpos.centery = self.background.get_rect().centery
-                                    self.screen.blit(takeReadsText, takeReadsTextpos)
-                                    pg.display.update()
-                                except:
-                                    print("Failed to print updating reads to screen")
-                                try:
-                                    reads = sensor.takeRead()
-                                    reads = reads[:-1]
-                                    [float(i) for i in reads]
-                                    avgRead = sum(reads)/len(reads)
-                                    avgRead2 = round(avgRead,1)
-                                    sensor.currRead = str(avgRead2)
-                                except:
-                                    print("Failed to manually take reads")
-                                self.screen.fill((0,0,0))                                                               
-                                self.update_event_loop(sensorName, sensorTag, sensor)
-                            elif self.topLeft.collidepoint(event.pos):
-                                if sensorTag is "DO":
-                                    self.calibrateEventNum = 2
-                                elif sensorTag is "PH":
-                                    self.calibrateEventNum = 3
-                                elif sensorTag is "T":
-                                    self.calibrateEventNum = 4
-                                elif sensorTag is "EC":
-                                    self.calibrateEventNum = 1
-                                self.finishEvent = False
-                            elif self.topRight.collidepoint(event.pos):
-                                if sensorTag is "DO":
-                                    self.createdOxygenSensor()
-                                elif sensorTag is "PH":
-                                    self.createPHSensor()
-                                elif sensorTag is "T":
-                                    self.createTemperatureSensor()
-                                elif sensorTag is "EC":
-                                    self.createConductivitySensor()
-                            elif self.btmRightSmall.collidepoint(event.pos):
-                                self.sensor = sensorTag
-                                self.subEventNum = 2
-                                self.finishEvent = False
-                            elif self.backBtn.collidepoint(event.pos):
-                                self.eventNum = 0
-                                self.finishEvent = False
-                        elif event.type in (pg.KEYUP, pg.KEYDOWN):
-                            self.keys = pg.key.get_pressed()
-                            self.finishEvent = False
+            pg.display.update()     
 
-    def numpad_event_loop(self, lowUp, ulrange, cal):
-            self.checkTime()
-            pg.display.update()
+    def numpad_event_screen(self, lowUp, ulrange, cal):
+            self.screen.fill((0,0,0))
+            """self.calNum = -1111
+            myfont = pg.font.SysFont("monospace", 60)
+            color = pg.Color("yellow")
+            oneNum = myfont.render("1", 1, color)
+            twoNum = myfont.render("2", 1, color)
+            threeNum = myfont.render("3", 1, color)
+            fourNum = myfont.render("4", 1, color)
+            fiveNum = myfont.render("5", 1, color)
+            sixNum = myfont.render("6", 1, color)
+            sevenNum = myfont.render("7", 1, color)
+            eightNum = myfont.render("8", 1, color)                        
+            nineNum = myfont.render("9", 1, color)
+            zeroNum = myfont.render("0", 1, color)
+            periodNum = myfont.render(".", 1, color)
+            myfont = pg.font.SysFont("monospace", 20)
+            myfont.set_underline(True)
+            if cal is 0:
+                title = myfont.render("Enter New Range", 1, color)
+                newRangeText = myfont.render("New " + lowUp + " Range:", 1, color)
+                pg.gfxdraw.rectangle(self.screen, self.backBtn, color)
+                pg.draw.polygon(self.screen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
+            elif cal is 1:
+                title = myfont.render("Enter Calibration", 1, color)
+                newRangeText = myfont.render(lowUp + ":", 1, color)
+            elif cal is 3:
+                title = myfont.render("Enter Reads/Day", 1, color)
+                newRangeText = myfont.render("Reads/Day:", 1, color)
+                pg.gfxdraw.rectangle(self.screen, self.backBtn, color)
+                pg.draw.polygon(self.screen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
+            elif cal is 4:
+                title = myfont.render("Enter Days Kept", 1, color)
+                newRangeText = myfont.render("Days Kept:", 1, color)
+                pg.gfxdraw.rectangle(self.screen, self.backBtn, color)
+                pg.draw.polygon(self.screen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
+
+            myfont = pg.font.SysFont("monospace", 15)
+            submit = myfont.render("Submit", 1, color)
+            value = myfont.render(self.newValue, 1, color)
+            pg.draw.polygon(self.screen, color, ((305,21),(265,21),(275,27),(265,21),(275,14),(265,21)), 2)
+
+            pg.gfxdraw.rectangle(self.screen, one, color)
+            pg.gfxdraw.rectangle(self.screen, two, color)
+            pg.gfxdraw.rectangle(self.screen, three, color)
+            pg.gfxdraw.rectangle(self.screen, four, color)
+            pg.gfxdraw.rectangle(self.screen, five, color)
+            pg.gfxdraw.rectangle(self.screen, six, color)
+            pg.gfxdraw.rectangle(self.screen, seven, color)
+            pg.gfxdraw.rectangle(self.screen, eight, color)
+            pg.gfxdraw.rectangle(self.screen, nine, color)
+            pg.gfxdraw.rectangle(self.screen, period, color)
+            pg.gfxdraw.rectangle(self.screen, zero, color)
+            pg.gfxdraw.rectangle(self.screen, submitBtn, color)
+            pg.gfxdraw.rectangle(self.screen, deleteBtn, color)
+        
+            textpos = oneNum.get_rect()
+            textpos.centerx = self.one.centerx
+            textpos.centery = self.one.centery
+            self.screen.blit(oneNum, textpos)
+            textpos = twoNum.get_rect()
+            textpos.centerx = self.two.centerx
+            textpos.centery = self.two.centery
+            self.screen.blit(twoNum, textpos)
+            textpos = threeNum.get_rect()
+            textpos.centerx = self.three.centerx
+            textpos.centery = self.three.centery
+            self.screen.blit(threeNum, textpos)
+            textpos = fourNum.get_rect()
+            textpos.centerx = self.four.centerx
+            textpos.centery = self.four.centery
+            self.screen.blit(fourNum, textpos)
+            textpos = fiveNum.get_rect()
+            textpos.centerx = self.five.centerx
+            textpos.centery = self.five.centery
+            self.screen.blit(fiveNum, textpos)
+            textpos = sixNum.get_rect()
+            textpos.centerx = self.six.centerx
+            textpos.centery = self.six.centery
+            self.screen.blit(sixNum, textpos)
+            textpos = sevenNum.get_rect()
+            textpos.centerx = self.seven.centerx
+            textpos.centery = self.seven.centery
+            self.screen.blit(sevenNum, textpos)
+            textpos = eightNum.get_rect()
+            textpos.centerx = self.eight.centerx
+            textpos.centery = self.eight.centery
+            self.screen.blit(eightNum, textpos)
+            textpos = nineNum.get_rect()
+            textpos.centerx = self.nine.centerx
+            textpos.centery = self.nine.centery
+            self.screen.blit(nineNum, textpos)
+            textpos = periodNum.get_rect()
+            textpos.centerx = self.period.centerx
+            textpos.centery = self.period.centery - 10
+            self.screen.blit(periodNum, textpos)
+            textpos = zeroNum.get_rect()
+            textpos.centerx = self.zero.centerx
+            textpos.centery = self.zero.centery
+            self.screen.blit(zeroNum, textpos)
+            textpos = submit.get_rect()
+            textpos.centerx = self.submitBtn.centerx
+            textpos.centery = self.submitBtn.centery
+            self.screen.blit(submit, textpos)
+            self.screen.blit(newRangeText, (5,195))
+            self.screen.blit(value, (5,215))
+            self.screen.blit(title, (50,10))"""
+
+    def numpad_event(self, lowUp, ulrange, cal):
+        while(1):
+            pg.display.update() 
+            self.numpad_event_screen(lowUp, ulrange, cal) 
             self.calNum = -1111
             myfont = pg.font.SysFont("monospace", 60)
             color = pg.Color("yellow")
@@ -1385,143 +1431,234 @@ class App(object):
             self.screen.blit(value, (5,215))
             self.screen.blit(title, (50,10))
                 
+  
+            pg.display.update()
+            pg.event.clear()
+            print("gets into the numpad")
+            pg.event.wait()
+            for event in pg.event.get():
+                    #try:
+                    if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
+                        sys.exit()
+                    elif event.type == pg.MOUSEBUTTONDOWN:
+                        if one.collidepoint(event.pos):
+                            self.newValue = self.newValue + "1"
+                        elif two.collidepoint(event.pos):
+                            self.newValue = self.newValue + "2"
+                        elif three.collidepoint(event.pos):
+                            self.newValue = self.newValue + "3"
+                            print("senses a mouse")
+                            print(str(self.newValue))
+                        elif four.collidepoint(event.pos):
+                            self.newValue = self.newValue + "4"
+                        elif five.collidepoint(event.pos):
+                            self.newValue = self.newValue + "5"
+                        elif six.collidepoint(event.pos):
+                            self.newValue = self.newValue + "6"
+                        elif seven.collidepoint(event.pos):
+                            self.newValue = self.newValue + "7"
+                        elif eight.collidepoint(event.pos):
+                            self.newValue = self.newValue + "8"
+                        elif nine.collidepoint(event.pos):
+                            self.newValue = self.newValue + "9"
+                        elif period.collidepoint(event.pos):
+                            self.newValue = self.newValue + "."
+                        elif zero.collidepoint(event.pos):
+                            self.newValue = self.newValue + "0"
+                        elif deleteBtn.collidepoint(event.pos):
+                            self.newValue = self.newValue[:-1]
+                            self.screen.fill((0,0,0))
+                        elif submitBtn.collidepoint(event.pos):
+                                    if cal is 0:
+                                        cfg[ulrange][str(self.sensor)] = self.newValue
+                                        for part in self.sensorList:
+                                            if part.sensorTag == self.sensor:
+                                                if ulrange == "lowRange":
+                                                    if float(self.newValue) < float(part.highRange) and float(self.newValue) > 0:
+                                                        part.lowRange = self.newValue
+                                                        with open("/home/pi/FishCode/Configure.yaml", "w") as f:
+                                                            yaml.dump(cfg, f)
+                                                else:
+                                                    if float(self.newValue) > float(part.lowRange) and float(self.newValue) > 0:
+                                                        part.highRange = self.newValue
+                                                        with open("/home/pi/FishCode/Configure.yaml", "w") as f:
+                                                            yaml.dump(cfg, f)
+                                    elif cal is 3:
+                                        if int(self.newValue) > 0:
+                                            cfg["readsPerDay"]["reads"] = self.newValue
+                                            self.readsPerDay = self.newValue
+                                            self.update_reads_per_day()
+                                            for part in self.sensorList:
+                                                part.readsPerDay = self.newValue
+                                        with open("/home/pi/FishCode/Configure.yaml", "w") as f:
+                                            yaml.dump(cfg, f)
+                                    elif cal is 4:
+                                        if int(self.newValue) > 0:
+                                            cfg["daysStored"]["days"] = self.newValue
+                                            self.daysToKeep = self.newValue
+                                            for part in self.sensorList:
+                                                part.daysToKeep = self.newValue
+                                        with open("/home/pi/FishCode/Configure.yaml", "w") as f:
+                                            yaml.dump(cfg, f)
+                                    else:
+                                        self.calNum = self.newValue
+                                    self.newValue = ""
+                                    return
+                        elif self.backBtn.collidepoint(event.pos):
+                            print("senses back button")
+                            self.newValue = ""
+                            return
+                    #except:
+                    #continue
+
+    def update_event(self, sensorName, sensorTag, sensor):
+        while(1):
+            self.update_event_screen(sensorName, sensorTag, sensor)
+            pg.display.update()
+            pg.event.wait()
+            for event in pg.event.get():
+                    #try:
+                    if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
+                        sys.exit()
+                    elif event.type == pg.MOUSEBUTTONDOWN:
+                        if self.btmLeftSmall.collidepoint(event.pos):
+                            self.sensor = sensorTag
+                            self.numpad_event("Low", "lowRange", 0)
+                        elif self.middleBtnSmall.collidepoint(event.pos):
+                            #this doesn't actually work...
+                            """try:
+                                self.screen.fill((0,0,0))
+                                takeReadsText = myfont.render("Taking Reads", 1, color)
+                                takeReadsTextpos = takeReadsText.get_rect()
+                                takeReadsTextpos.centerx = self.background.get_rect().centerx
+                                takeReadsTextpos.centery = self.background.get_rect().centery
+                                self.screen.blit(takeReadsText, takeReadsTextpos)
+                                pg.display.update()
+                            except:
+                                continue
+                            """
+                            try:
+                                reads = sensor.takeRead()
+                                reads = reads[:-1]
+                                [float(i) for i in reads]
+                                avgRead = sum(reads) / len(reads)
+                                avgRead2 = round(avgRead,1)
+                                sensor.currRead = str(avgRead2)
+                            except:
+                                continue
+                            self.screen.fill((0,0,0))
+                            #TODO refresh screen here                                                          
+                        elif self.topLeft.collidepoint(event.pos):
+                            if sensorTag is "DO":
+                                self.dOxygen_calibrate()
+                            elif sensorTag is "PH":
+                                self.pH_calibrate()
+                            elif sensorTag is "T":
+                                self.temp_calibrate()
+                            elif sensorTag is "EC":
+                                self.cond_calibrate()
+                        elif self.topRight.collidepoint(event.pos):
+                            if sensorTag is "DO":
+                                self.createdOxygenSensor()
+                            elif sensorTag is "PH":
+                                self.createPHSensor()
+                            elif sensorTag is "T":
+                                self.createTemperatureSensor()
+                            elif sensorTag is "EC":
+                                self.createConductivitySensor()
+                        elif self.btmRightSmall.collidepoint(event.pos):
+                            self.sensor = sensorTag
+                            self.numpad_event("High", "highRange", 0)
+                        elif self.backBtn.collidepoint(event.pos):
+                            return
+                    elif event.type in (pg.KEYUP, pg.KEYDOWN):
+                        self.keys = pg.key.get_pressed()
+                    #except:
+                    #continue
+
+    # Switches between the event loops depending on button pressed 
+    
+    def main_loop(self):
+        t2 = Thread(target=App.checkTime_loop, args=(self,))
+        t2.start()
+        while(1):
+            pg.event.clear()
+            self.main_menu_screen()
             pg.display.update()     
             pg.event.wait() 
             for event in pg.event.get():
-                if(self.finishEvent == True):
-                        if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
-                            self.done = True
-                            self.finishEvent = False
-                            self.newValue = ""
-                        elif event.type == pg.MOUSEBUTTONDOWN:
-                            if one.collidepoint(event.pos):
-                                self.newValue = self.newValue + "1"
-                            elif two.collidepoint(event.pos):
-                                self.newValue = self.newValue + "2"
-                            elif three.collidepoint(event.pos):
-                                self.newValue = self.newValue + "3"
-                            elif four.collidepoint(event.pos):
-                                self.newValue = self.newValue + "4"
-                            elif five.collidepoint(event.pos):
-                                self.newValue = self.newValue + "5"
-                            elif six.collidepoint(event.pos):
-                                self.newValue = self.newValue + "6"
-                            elif seven.collidepoint(event.pos):
-                                self.newValue = self.newValue + "7"
-                            elif eight.collidepoint(event.pos):
-                                self.newValue = self.newValue + "8"
-                            elif nine.collidepoint(event.pos):
-                                self.newValue = self.newValue + "9"
-                            elif period.collidepoint(event.pos):
-                                self.newValue = self.newValue + "."
-                            elif zero.collidepoint(event.pos):
-                                self.newValue = self.newValue + "0"
-                            elif deleteBtn.collidepoint(event.pos):
-                                self.newValue = self.newValue[:-1]
-                                self.screen.fill((0,0,0))
-                            elif submitBtn.collidepoint(event.pos):
-                                if cal is 0:
-                                    cfg[ulrange][str(self.sensor)] = self.newValue
-                                    for part in self.sensorList:
-                                        if part.sensorTag == self.sensor:
-                                            if ulrange == "lowRange":
-                                                if float(self.newValue) < float(part.highRange) and float(self.newValue) > 0:
-                                                    part.lowRange = self.newValue
-                                            else:
-                                                if float(self.newValue) > float(part.lowRange) and float(self.newValue) > 0:
-                                                    part.highRange = self.newValue
-                                    with open("/home/pi/FishCode/Configure.yaml", "w") as f:
-                                        yaml.dump(cfg, f)
-                                    self.subEventNum = 0
-                                elif cal is 3:
-                                    if int(self.newValue) > 0:
-                                        cfg["readsPerDay"]["reads"] = self.newValue
-                                        self.readsPerDay = self.newValue
-                                        self.update_reads_per_day()
-                                        for part in self.sensorList:
-                                            part.readsPerDay = self.newValue
-                                    with open("/home/pi/FishCode/Configure.yaml", "w") as f:
-                                        yaml.dump(cfg, f)
-                                    self.subEventNum = 0
-                                elif cal is 4:
-                                    if int(self.newValue) > 0:
-                                        cfg["daysStored"]["days"] = self.newValue
-                                        self.daysToKeep = self.newValue
-                                        for part in self.sensorList:
-                                            part.daysToKeep = self.newValue
-                                    with open("/home/pi/FishCode/Configure.yaml", "w") as f:
-                                        yaml.dump(cfg, f)
-                                    self.subEventNum = 0
-                                else:
-                                    self.calNum = self.newValue
-                                    self.subEventNum = 0
-                                self.finishEvent = False
-                                self.newValue = ""
-                            elif self.backBtn.collidepoint(event.pos) and cal is not 1:
-                                self.subEventNum = 0
-                                self.newValue = ""
-                                self.finishEvent = False
-                        elif event.type in (pg.KEYUP, pg.KEYDOWN):
-                            self.newValue = ""
-                            self.keys = pg.key.get_pressed()
-                            self.finishEvent = False
-
-    # Switches between the event loops depending on button pressed
-    def main_loop(self):
-        while not self.done:
-            pg.display.update()
-            self.checkTime()
-            self.screen.fill((0,0,0))
-            self.finishEvent = True
-            if self.subEventNum == 0:
-                if self.calibrateEventNum == 0:
-                    if self.eventNum == 0:
-                        self.main_menu_event_loop()
-                    elif self.eventNum == 1:
-                        self.update_event_loop("Conductivity", "EC", self.conductivity)
-                    elif self.eventNum == 2:
-                        self.update_event_loop("dOxygen", "DO", self.dOxygen)
-                    elif self.eventNum == 3:
-                        self.update_event_loop("Temperature", "T", self.temperature)
-                    elif self.eventNum == 4:
-                        self.update_event_loop("pH", "PH", self.ph)
-                    elif self.eventNum == 5:
-                        self.settings_event_loop()
-                elif self.calibrateEventNum == 1:
-                    self.cond_calibrate_loop()
-                elif self.calibrateEventNum == 2:
-                    self.dOxygen_calibrate_loop()
-                elif self.calibrateEventNum == 3:
-                    self.pH_calibrate_loop()
-                elif self.calibrateEventNum == 4:
-                    self.temp_calibrate_loop()
-            elif self.subEventNum == 1:
-                self.numpad_event_loop("Low", "lowRange", 0)
-            elif self.subEventNum == 2:
-                self.numpad_event_loop("High", "highRange", 0)
-            elif self.subEventNum == 3:
-                self.numpad_event_loop("Enter Reads/Day", "", 3)
-            elif self.subEventNum == 4:
-                self.numpad_event_loop("Enter Days Stored", "", 4)
-            elif self.subEventNum == 5:
-                self.numpad_event_loop("Cal Value","",1)
-            elif self.subEventNum == 7:
-                self.numpad_event_loop("Enter MidPt","",1)
-            elif self.subEventNum == 8:
-                self.numpad_event_loop("Enter LowPt","",1)
-            elif self.subEventNum == 9:
-                self.numpad_event_loop("Enter HighPt","",1)
-            elif self.subEventNum == 6:
-                self.numpad_event_loop("","",1)
+                try:
+                    if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
+                        sys.exit()
+                    if event.type == pg.MOUSEBUTTONDOWN:
+                        if self.topLeft.collidepoint(event.pos):
+                            self.update_event("Conductivity", "EC", self.conductivity)
+                        elif self.topRight.collidepoint(event.pos):
+                            self.update_event("dOxygen", "DO", self.dOxygen)
+                        elif self.btmRight.collidepoint(event.pos):
+                            self.update_event("Temperature", "T", self.temperature)
+                        elif self.btmLeft.collidepoint(event.pos):
+                            self.update_event("pH", "PH", self.ph)
+                        elif self.settingsBtn.collidepoint(event.pos):
+                            self.settings_event()
+                except:
+                    continue
+                """
+                while not self.done:
+                pg.display.update()
+                #self.checkTime()
+                self.screen.fill((0,0,0))
+                self.finishEvent = True
+                if self.subEventNum == 0:
+                    if self.calibrateEventNum == 0:
+                        if self.eventNum == 0:
+                            self.main_menu_event_loop()
+                        elif self.eventNum == 1:
+                            self.update_event_loop("Conductivity", "EC", self.conductivity)
+                        elif self.eventNum == 2:
+                            self.update_event_loop("dOxygen", "DO", self.dOxygen)
+                        elif self.eventNum == 3:
+                            self.update_event_loop("Temperature", "T", self.temperature)
+                        elif self.eventNum == 4:
+                            self.update_event_loop("pH", "PH", self.ph)
+                        elif self.eventNum == 5:
+                            self.settings_event_loop()
+                    elif self.calibrateEventNum == 1:
+                        self.cond_calibrate_loop()
+                    elif self.calibrateEventNum == 2:
+                        self.dOxygen_calibrate_loop()
+                    elif self.calibrateEventNum == 3:
+                        self.pH_calibrate_loop()
+                    elif self.calibrateEventNum == 4:
+                        self.temp_calibrate_loop()
+                elif self.subEventNum == 1:
+                    self.numpad_event_loop("Low", "lowRange", 0)
+                elif self.subEventNum == 2:
+                    self.numpad_event_loop("High", "highRange", 0)
+                elif self.subEventNum == 3:
+                    self.numpad_event_loop("Enter Reads/Day", "", 3)
+                elif self.subEventNum == 4:
+                    self.numpad_event_loop("Enter Days Stored", "", 4)
+                elif self.subEventNum == 5:
+                    self.numpad_event_loop("Cal Value","",1)
+                elif self.subEventNum == 7:
+                    self.numpad_event_loop("Enter MidPt","",1)
+                elif self.subEventNum == 8:
+                    self.numpad_event_loop("Enter LowPt","",1)
+                elif self.subEventNum == 9:
+                    self.numpad_event_loop("Enter HighPt","",1)
+                elif self.subEventNum == 6:
+                    self.numpad_event_loop("","",1)"""
 
 
 # Initializes pygame and starts touchscreen loop
 def main():
-    os.environ['SDL_VIDEO_CENTERED'] = '1' 
+    os.environ['SDL_VIDEO_CENTERED'] = '1'
     pg.init()
     pg.display.set_caption(CAPTION)
     pg.display.set_mode(SCREEN_SIZE)
-    pg.display.toggle_fullscreen()
+    #TESTING
+    #pg.display.toggle_fullscreen()
     App().main_loop()
     pg.quit()
     sys.exit()
@@ -1537,3 +1674,6 @@ if __name__ == "__main__":
 #TODO - limit character size for number input
 #TODO - clean up code
 #TODO add a shortcut to program on the home screen of pi
+
+#TODO create classes
+#TODO refactor for event driven programming
