@@ -102,7 +102,7 @@ class App(object):
         self.keys = pg.key.get_pressed()
         self.color = pg.Color("black")
         # Hides Mouse, still allows click events
-        pygame.mouse.set_cursor((8,8),(0,0),(0,0,0,0,0,0,0,0),(0,0,0,0,0,0,0,0))
+        pg.mouse.set_cursor((8,8),(0,0),(0,0,0,0,0,0,0,0),(0,0,0,0,0,0,0,0))
         self.topLeft = pg.Rect(5,45,152.5,92.5)
         self.btmLeftSmall = pg.Rect(5,142.5,100,92.5)
         self.middleBtnSmall = pg.Rect(110,142.5,100,92.5)
@@ -133,11 +133,6 @@ class App(object):
         self.submitBtn = pg.Rect(194,195,58,35)
         self.deleteBtn = pg.Rect(257,5,58,35)"""
 
-        self.eventNum = 0
-        self.subEventNum = 0
-        self.calibrateEventNum = 0
-        self.finishEvent = True
-        self.newValue = ""
         self.sensor = ""
         self.takeReadFlag = True
         self.calNum = "-1111"
@@ -748,7 +743,7 @@ class App(object):
             failCalpos.centery = self.background.get_rect().centery
        
             stepNum = 0
-            while self.finishEvent and not self.done:
+            while(1):
                 pg.gfxdraw.rectangle(self.screen, self.backBtn, color)
                 pg.draw.polygon(self.screen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
                 pg.gfxdraw.rectangle(self.screen, self.btmRight, color)
@@ -758,22 +753,18 @@ class App(object):
                     self.screen.blit(step1, step1pos)
                     self.screen.blit(step2, step2pos)
                     self.screen.blit(step3, step3pos)                                       
-                pg.display.update()  
-                #change this to empty the events in event.get() so it doesn't
-                #grab the same click for multiple screens
+                pg.event.clear()
+                pg.display.update()     
+                pg.event.wait() 
                 for event in pg.event.get():
-                    if(self.finishEvent == True):
                         if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
                             self.done = True
-                            self.finishEvent = False
                         elif event.type == pg.MOUSEBUTTONDOWN:
                             if self.btmRight.collidepoint(event.pos):
                                 if self.temperature.i2cAddress != -1:
                                     if stepNum == 0:
                                         if self.calNum == "-1111":
-                                            self.subEventNum = 5
-                                            self.finishEvent = False
-                                            self.numpad_event_loop("Cal Value","",1)
+                                            self.numpad_event("Cal Value","",1)
                                             continue
                                         elif self.calNum != "-1111":
                                             self.screen.blit(step1, step1pos)
@@ -785,38 +776,29 @@ class App(object):
                                         if self.tryThree('CAL,clear', self.temperature):
                                             if self.tryThree('CAL,' + str(self.calNum), self.temperature):
                                                 self.screen.fill((0,0,0))
-                                                self.finishEvent = False
                                                 self.screen.blit(successfulCal, successfulCalpos)
                                                 pg.display.update()
                                                 time.sleep(1)
                                                 self.calNum = "-1111"
-                                                self.calibrateEventNum = 0  
+                                                return
                             elif self.backBtn.collidepoint(event.pos):
                                 stepNum = 0
-                                self.finishEvent = False
                                 self.calNum = "-1111"
-                                self.calibrateEventNum = 0
-                        elif event.type in (pg.KEYUP, pg.KEYDOWN):
-                            self.keys = pg.key.get_pressed()
-                            self.finishEvent = False
-                            self.calNum = "-1111"
-                            self.calibrateEventNum = 0
+                                return
         except:
             self.screen.fill((0,0,0))
             self.screen.blit(failCal, failCalpos)
             pg.display.update()
             time.sleep(1)
             stepNum = 0
-            self.finishEvent = False
             self.calNum = "-1111"
-            self.calibrateEventNum = 0
+            return
 
     # Dissolved Oxygen Calibration
     def dOxygen_calibrate_loop(self):
         while(1):
             try:
                 self.screen.fill((0,0,0))
-
                 pg.display.update()
                 myfont = pg.font.SysFont("monospace", 20)
                 color = pg.Color("yellow")
@@ -879,7 +861,6 @@ class App(object):
                 part1pos = part1Cal.get_rect()
                 part1pos.centerx = self.btmRight.centerx
                 part1pos.centery = self.btmRight.centery
-
 
                 ptCals = -1
                 stepNum = 0
@@ -1029,7 +1010,8 @@ class App(object):
         else:
             return cfg["highRange"][sensorTag]
 
-    #TODO lock the reads, so no new commands override the taking of reads
+    # A constantly running loop that has an individual thread
+    # Checks the time for taking automated reads
     def checkTime_loop(self):
         while(1):
             try:
@@ -1164,111 +1146,6 @@ class App(object):
 
     def numpad_event_screen(self, lowUp, ulrange, cal):
             self.screen.fill((0,0,0))
-            """self.calNum = -1111
-            myfont = pg.font.SysFont("monospace", 60)
-            color = pg.Color("yellow")
-            oneNum = myfont.render("1", 1, color)
-            twoNum = myfont.render("2", 1, color)
-            threeNum = myfont.render("3", 1, color)
-            fourNum = myfont.render("4", 1, color)
-            fiveNum = myfont.render("5", 1, color)
-            sixNum = myfont.render("6", 1, color)
-            sevenNum = myfont.render("7", 1, color)
-            eightNum = myfont.render("8", 1, color)                        
-            nineNum = myfont.render("9", 1, color)
-            zeroNum = myfont.render("0", 1, color)
-            periodNum = myfont.render(".", 1, color)
-            myfont = pg.font.SysFont("monospace", 20)
-            myfont.set_underline(True)
-            if cal is 0:
-                title = myfont.render("Enter New Range", 1, color)
-                newRangeText = myfont.render("New " + lowUp + " Range:", 1, color)
-                pg.gfxdraw.rectangle(self.screen, self.backBtn, color)
-                pg.draw.polygon(self.screen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
-            elif cal is 1:
-                title = myfont.render("Enter Calibration", 1, color)
-                newRangeText = myfont.render(lowUp + ":", 1, color)
-            elif cal is 3:
-                title = myfont.render("Enter Reads/Day", 1, color)
-                newRangeText = myfont.render("Reads/Day:", 1, color)
-                pg.gfxdraw.rectangle(self.screen, self.backBtn, color)
-                pg.draw.polygon(self.screen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
-            elif cal is 4:
-                title = myfont.render("Enter Days Kept", 1, color)
-                newRangeText = myfont.render("Days Kept:", 1, color)
-                pg.gfxdraw.rectangle(self.screen, self.backBtn, color)
-                pg.draw.polygon(self.screen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
-
-            myfont = pg.font.SysFont("monospace", 15)
-            submit = myfont.render("Submit", 1, color)
-            value = myfont.render(self.newValue, 1, color)
-            pg.draw.polygon(self.screen, color, ((305,21),(265,21),(275,27),(265,21),(275,14),(265,21)), 2)
-
-            pg.gfxdraw.rectangle(self.screen, one, color)
-            pg.gfxdraw.rectangle(self.screen, two, color)
-            pg.gfxdraw.rectangle(self.screen, three, color)
-            pg.gfxdraw.rectangle(self.screen, four, color)
-            pg.gfxdraw.rectangle(self.screen, five, color)
-            pg.gfxdraw.rectangle(self.screen, six, color)
-            pg.gfxdraw.rectangle(self.screen, seven, color)
-            pg.gfxdraw.rectangle(self.screen, eight, color)
-            pg.gfxdraw.rectangle(self.screen, nine, color)
-            pg.gfxdraw.rectangle(self.screen, period, color)
-            pg.gfxdraw.rectangle(self.screen, zero, color)
-            pg.gfxdraw.rectangle(self.screen, submitBtn, color)
-            pg.gfxdraw.rectangle(self.screen, deleteBtn, color)
-        
-            textpos = oneNum.get_rect()
-            textpos.centerx = self.one.centerx
-            textpos.centery = self.one.centery
-            self.screen.blit(oneNum, textpos)
-            textpos = twoNum.get_rect()
-            textpos.centerx = self.two.centerx
-            textpos.centery = self.two.centery
-            self.screen.blit(twoNum, textpos)
-            textpos = threeNum.get_rect()
-            textpos.centerx = self.three.centerx
-            textpos.centery = self.three.centery
-            self.screen.blit(threeNum, textpos)
-            textpos = fourNum.get_rect()
-            textpos.centerx = self.four.centerx
-            textpos.centery = self.four.centery
-            self.screen.blit(fourNum, textpos)
-            textpos = fiveNum.get_rect()
-            textpos.centerx = self.five.centerx
-            textpos.centery = self.five.centery
-            self.screen.blit(fiveNum, textpos)
-            textpos = sixNum.get_rect()
-            textpos.centerx = self.six.centerx
-            textpos.centery = self.six.centery
-            self.screen.blit(sixNum, textpos)
-            textpos = sevenNum.get_rect()
-            textpos.centerx = self.seven.centerx
-            textpos.centery = self.seven.centery
-            self.screen.blit(sevenNum, textpos)
-            textpos = eightNum.get_rect()
-            textpos.centerx = self.eight.centerx
-            textpos.centery = self.eight.centery
-            self.screen.blit(eightNum, textpos)
-            textpos = nineNum.get_rect()
-            textpos.centerx = self.nine.centerx
-            textpos.centery = self.nine.centery
-            self.screen.blit(nineNum, textpos)
-            textpos = periodNum.get_rect()
-            textpos.centerx = self.period.centerx
-            textpos.centery = self.period.centery - 10
-            self.screen.blit(periodNum, textpos)
-            textpos = zeroNum.get_rect()
-            textpos.centerx = self.zero.centerx
-            textpos.centery = self.zero.centery
-            self.screen.blit(zeroNum, textpos)
-            textpos = submit.get_rect()
-            textpos.centerx = self.submitBtn.centerx
-            textpos.centery = self.submitBtn.centery
-            self.screen.blit(submit, textpos)
-            self.screen.blit(newRangeText, (5,195))
-            self.screen.blit(value, (5,215))
-            self.screen.blit(title, (50,10))"""
 
     def numpad_event(self, lowUp, ulrange, cal):
         while(1):
@@ -1311,7 +1188,7 @@ class App(object):
 
             myfont = pg.font.SysFont("monospace", 15)
             submit = myfont.render("Submit", 1, color)
-            value = myfont.render(self.newValue, 1, color)
+            value = myfont.render(newValue, 1, color)
             pg.draw.polygon(self.screen, color, ((305,21),(265,21),(275,27),(265,21),(275,14),(265,21)), 2)
 
             one = pg.Rect(5,45,58,70)
@@ -1404,68 +1281,68 @@ class App(object):
                         sys.exit()
                     elif event.type == pg.MOUSEBUTTONDOWN:
                         if one.collidepoint(event.pos):
-                            self.newValue = self.newValue + "1"
+                            newValue = newValue + "1"
                         elif two.collidepoint(event.pos):
-                            self.newValue = self.newValue + "2"
+                            newValue = newValue + "2"
                         elif three.collidepoint(event.pos):
-                            self.newValue = self.newValue + "3"
+                            newValue = newValue + "3"
                         elif four.collidepoint(event.pos):
-                            self.newValue = self.newValue + "4"
+                            newValue = newValue + "4"
                         elif five.collidepoint(event.pos):
-                            self.newValue = self.newValue + "5"
+                            newValue = newValue + "5"
                         elif six.collidepoint(event.pos):
-                            self.newValue = self.newValue + "6"
+                            newValue = newValue + "6"
                         elif seven.collidepoint(event.pos):
-                            self.newValue = self.newValue + "7"
+                            newValue = newValue + "7"
                         elif eight.collidepoint(event.pos):
-                            self.newValue = self.newValue + "8"
+                            newValue = newValue + "8"
                         elif nine.collidepoint(event.pos):
-                            self.newValue = self.newValue + "9"
+                            newValue = newValue + "9"
                         elif period.collidepoint(event.pos):
-                            self.newValue = self.newValue + "."
+                            newValue = newValue + "."
                         elif zero.collidepoint(event.pos):
-                            self.newValue = self.newValue + "0"
+                            newValue = newValue + "0"
                         elif deleteBtn.collidepoint(event.pos):
-                            self.newValue = self.newValue[:-1]
+                            newValue = newValue[:-1]
                             self.screen.fill((0,0,0))
                         elif submitBtn.collidepoint(event.pos):
                                     if cal is 0:
-                                        cfg[ulrange][str(self.sensor)] = self.newValue
+                                        cfg[ulrange][str(self.sensor)] = newValue
                                         for part in self.sensorList:
                                             if part.sensorTag == self.sensor:
                                                 if ulrange == "lowRange":
-                                                    if float(self.newValue) < float(part.highRange) and float(self.newValue) > 0:
-                                                        part.lowRange = self.newValue
+                                                    if float(newValue) < float(part.highRange) and float(newValue) > 0:
+                                                        part.lowRange = newValue
                                                         with open("/home/pi/FishCode/Configure.yaml", "w") as f:
                                                             yaml.dump(cfg, f)
                                                 else:
-                                                    if float(self.newValue) > float(part.lowRange) and float(self.newValue) > 0:
-                                                        part.highRange = self.newValue
+                                                    if float(newValue) > float(part.lowRange) and float(newValue) > 0:
+                                                        part.highRange = newValue
                                                         with open("/home/pi/FishCode/Configure.yaml", "w") as f:
                                                             yaml.dump(cfg, f)
                                     elif cal is 3:
-                                        if int(self.newValue) > 0:
-                                            cfg["readsPerDay"]["reads"] = self.newValue
-                                            self.readsPerDay = self.newValue
+                                        if int(newValue) > 0:
+                                            cfg["readsPerDay"]["reads"] = newValue
+                                            self.readsPerDay = newValue
                                             self.update_reads_per_day()
                                             for part in self.sensorList:
-                                                part.readsPerDay = self.newValue
+                                                part.readsPerDay = newValue
                                         with open("/home/pi/FishCode/Configure.yaml", "w") as f:
                                             yaml.dump(cfg, f)
                                     elif cal is 4:
-                                        if int(self.newValue) > 0:
-                                            cfg["daysStored"]["days"] = self.newValue
-                                            self.daysToKeep = self.newValue
+                                        if int(newValue) > 0:
+                                            cfg["daysStored"]["days"] = newValue
+                                            self.daysToKeep = newValue
                                             for part in self.sensorList:
-                                                part.daysToKeep = self.newValue
+                                                part.daysToKeep = newValue
                                         with open("/home/pi/FishCode/Configure.yaml", "w") as f:
                                             yaml.dump(cfg, f)
                                     else:
-                                        self.calNum = self.newValue
-                                    self.newValue = ""
+                                        self.calNum = newValue
+                                    newValue = ""
                                     return
                         elif self.backBtn.collidepoint(event.pos):
-                            self.newValue = ""
+                            newValue = ""
                             return
                     #except:
                     #continue
