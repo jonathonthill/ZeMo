@@ -41,14 +41,14 @@ with open("/home/pi/FishCode/EmailList.txt", "r") as f:
 emailFile.close()
 
 valuesCond = {'token' : '1234567abcdefg',
-    'metric' : 'cd.csv'} #do.csv or cd.csv or tp.csv or ph.csv
+    'metric' : 'cd.csv'}
 valuesDO = {'token' : '1234567abcdefg',
     'metric' : 'do.csv'}
 valuespH = {'token' : '1234567abcdefg',
     'metric' : 'ph.csv'}
 valuesTemp = {'token' : '1234567abcdefg',
     'metric' : 'tp.csv'}
-urlCond = 'https://zemoproject.org/djhill/rack1/metrics/cd' #this does conductivity posting, need one for each probe type
+urlCond = 'https://zemoproject.org/djhill/rack1/metrics/cd' #this does conductivity posting
 urlpH = 'https://zemoproject.org/djhill/rack1/metrics/ph'
 urlDO = 'https://zemoproject.org/djhill/rack1/metrics/do'
 urlTemp = 'https://zemoproject.org/djhill/rack1/metrics/tp'
@@ -63,15 +63,12 @@ class App(object):
             self.eth0 = self.emailer.get_interface_ipaddress("eth0")
         except:
             self.eth0 = "none"
-        
         self.wlan0 = self.emailer.get_interface_ipaddress("wlan0")
-
 
         try:
             self.wlan0 = self.emailer.get_interface_ipaddress("wlan0")
         except:
             self.wlan0 = "none"
-
         
         self.sensorList = []
         self.timeList = []
@@ -98,6 +95,7 @@ class App(object):
         #self.ip = self.eth0 + ", " + self.wlan0
         self.screen = pg.display.get_surface()
         self.background = pygame.Surface(self.screen.get_size())
+        # The program will exit once this is set to 'True'
         self.done = False
         self.keys = pg.key.get_pressed()
         self.color = pg.Color("black")
@@ -119,7 +117,7 @@ class App(object):
         self.middleBtn = pg.Rect(83.75,45,152.5,92.5)
         self.settingsBtn = pg.Rect(280,5,35,35)
 
-        """self.one = pg.Rect(5,45,58,70)
+        self.one = pg.Rect(5,45,58,70)
         self.two = pg.Rect(68,45,58,70)
         self.three = pg.Rect(131,45,58,70)
         self.four = pg.Rect(194,45,58,70)
@@ -131,7 +129,7 @@ class App(object):
         self.zero = pg.Rect(257,120,58,70)
         self.period = pg.Rect(257,195,58,35)
         self.submitBtn = pg.Rect(194,195,58,35)
-        self.deleteBtn = pg.Rect(257,5,58,35)"""
+        self.deleteBtn = pg.Rect(257,5,58,35)
 
         self.sensor = ""
         self.takeReadFlag = True
@@ -337,8 +335,6 @@ class App(object):
                             self.numpad_event("Enter Reads/Day", "", 3)
                         elif self.backBtn.collidepoint(event.pos):
                             return
-                        elif event.type in (pg.KEYUP, pg.KEYDOWN):
-                            self.keys = pg.key.get_pressed()
                 except:
                     continue
 
@@ -363,7 +359,7 @@ class App(object):
         return False
 
     # pH Calibration
-    def pH_calibrate_loop(self):
+    def pH_calibrate(self):
         try:
             pg.display.update()
             myfont = pg.font.SysFont("monospace", 20)
@@ -449,9 +445,6 @@ class App(object):
                 for event in pg.event.get():                
                         if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
                             self.done = True
-                            self.calNum = "-1111"
-                            self.pHCalStep = -1
-                            self.pHPtCal = -1
                             return
                         elif event.type == pg.MOUSEBUTTONDOWN:
                             # Determine the Pt Calibration
@@ -545,7 +538,6 @@ class App(object):
                                             self.pHPtCal = -1
                                             return
                             elif self.backBtn.collidepoint(event.pos):
-                                stepNum = 0
                                 self.calNum = "-1111"
                                 self.pHCalStep = -1
                                 self.pHPtCal = -1
@@ -555,17 +547,13 @@ class App(object):
             self.screen.blit(failCal, failCalpos)
             pg.display.update()
             time.sleep(1)
-            stepNum = 0
-            midPt = ""
-            highPt = ""
-            lowPt = ""
             self.calNum = "-1111"
             self.pHCalStep = -1
             self.pHPtCal = -1
             return
 
     # Conductivity Calibration
-    def cond_calibrate_loop(self):
+    def cond_calibrate(self):
         try:
             pg.display.update()
             myfont = pg.font.SysFont("monospace", 20)
@@ -633,6 +621,7 @@ class App(object):
                 for event in pg.event.get():
                         if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
                             self.done = True
+                            return
                         elif event.type == pg.MOUSEBUTTONDOWN:
                             if self.btmRight.collidepoint(event.pos):
                                 if self.conductivity.i2cAddress != -1:
@@ -689,7 +678,6 @@ class App(object):
                                             self.calNum = "-1111"
                                             return
                             elif self.backBtn.collidepoint(event.pos):
-                                stepNum = 0
                                 self.calNum = "-1111"
                                 return
         except:
@@ -697,12 +685,11 @@ class App(object):
             self.screen.blit(failCal, failCalpos)
             pg.display.update()
             time.sleep(1)
-            stepNum = 0
             self.calNum = "-1111"
             return
 
     # Temperature Calibration
-    def temp_calibrate_loop(self):
+    def temp_calibrate(self):
         try:
             pg.display.update()
             myfont = pg.font.SysFont("monospace", 20)
@@ -759,6 +746,7 @@ class App(object):
                 for event in pg.event.get():
                         if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
                             self.done = True
+                            return
                         elif event.type == pg.MOUSEBUTTONDOWN:
                             if self.btmRight.collidepoint(event.pos):
                                 if self.temperature.i2cAddress != -1:
@@ -782,7 +770,6 @@ class App(object):
                                                 self.calNum = "-1111"
                                                 return
                             elif self.backBtn.collidepoint(event.pos):
-                                stepNum = 0
                                 self.calNum = "-1111"
                                 return
         except:
@@ -790,12 +777,11 @@ class App(object):
             self.screen.blit(failCal, failCalpos)
             pg.display.update()
             time.sleep(1)
-            stepNum = 0
             self.calNum = "-1111"
             return
 
     # Dissolved Oxygen Calibration
-    def dOxygen_calibrate_loop(self):
+    def dOxygen_calibrate(self):
         while(1):
             try:
                 self.screen.fill((0,0,0))
@@ -881,6 +867,7 @@ class App(object):
                 for event in pg.event.get():
                             if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
                                 self.done = True
+                                return
                             elif event.type == pg.MOUSEBUTTONDOWN:
                                 # Dual Point Calibration
                                 if self.btmRight.collidepoint(event.pos):
@@ -927,7 +914,6 @@ class App(object):
                                                 self.screen.blit(step2, step2pos)
                                                 self.screen.blit(step3, step3pos)
                                 elif self.backBtn.collidepoint(event.pos):
-                                    stepNum = 0
                                     self.calNum = "-1111"
                                     return
             except:
@@ -935,7 +921,6 @@ class App(object):
                 self.screen.blit(failCal, failCalpos)
                 pg.display.update()
                 time.sleep(1)
-                stepNum = 0
                 self.calNum = "-1111"
                 return
 
@@ -1146,11 +1131,6 @@ class App(object):
 
     def numpad_event_screen(self, lowUp, ulrange, cal):
             self.screen.fill((0,0,0))
-
-    def numpad_event(self, lowUp, ulrange, cal):
-        while(1):
-            pg.display.update() 
-            self.numpad_event_screen(lowUp, ulrange, cal) 
             self.calNum = -1111
             myfont = pg.font.SysFont("monospace", 60)
             color = pg.Color("yellow")
@@ -1167,6 +1147,8 @@ class App(object):
             periodNum = myfont.render(".", 1, color)
             myfont = pg.font.SysFont("monospace", 20)
             myfont.set_underline(True)
+            print("renders")
+
             if cal is 0:
                 title = myfont.render("Enter New Range", 1, color)
                 newRangeText = myfont.render("New " + lowUp + " Range:", 1, color)
@@ -1188,90 +1170,85 @@ class App(object):
 
             myfont = pg.font.SysFont("monospace", 15)
             submit = myfont.render("Submit", 1, color)
-            value = myfont.render(newValue, 1, color)
+
             pg.draw.polygon(self.screen, color, ((305,21),(265,21),(275,27),(265,21),(275,14),(265,21)), 2)
 
-            one = pg.Rect(5,45,58,70)
-            two = pg.Rect(68,45,58,70)
-            three = pg.Rect(131,45,58,70)
-            four = pg.Rect(194,45,58,70)
-            five = pg.Rect(257,45,58,70)
-            six = pg.Rect(5,120,58,70)
-            seven = pg.Rect(68,120,58,70)
-            eight = pg.Rect(131,120,58,70)
-            nine = pg.Rect(194,120,58,70)
-            zero = pg.Rect(257,120,58,70)
-            period = pg.Rect(257,195,58,35)
-            submitBtn = pg.Rect(194,195,58,35)
-            deleteBtn = pg.Rect(257,5,58,35)
+            pg.gfxdraw.rectangle(self.screen, self.one, color)
+            pg.gfxdraw.rectangle(self.screen, self.two, color)
+            pg.gfxdraw.rectangle(self.screen, self.three, color)
+            pg.gfxdraw.rectangle(self.screen, self.four, color)
+            pg.gfxdraw.rectangle(self.screen, self.five, color)
+            pg.gfxdraw.rectangle(self.screen, self.six, color)
+            pg.gfxdraw.rectangle(self.screen, self.seven, color)
+            pg.gfxdraw.rectangle(self.screen, self.eight, color)
+            pg.gfxdraw.rectangle(self.screen, self.nine, color)
+            pg.gfxdraw.rectangle(self.screen, self.period, color)
+            pg.gfxdraw.rectangle(self.screen, self.zero, color)
+            pg.gfxdraw.rectangle(self.screen, self.submitBtn, color)
+            pg.gfxdraw.rectangle(self.screen, self.deleteBtn, color)
 
-            pg.gfxdraw.rectangle(self.screen, one, color)
-            pg.gfxdraw.rectangle(self.screen, two, color)
-            pg.gfxdraw.rectangle(self.screen, three, color)
-            pg.gfxdraw.rectangle(self.screen, four, color)
-            pg.gfxdraw.rectangle(self.screen, five, color)
-            pg.gfxdraw.rectangle(self.screen, six, color)
-            pg.gfxdraw.rectangle(self.screen, seven, color)
-            pg.gfxdraw.rectangle(self.screen, eight, color)
-            pg.gfxdraw.rectangle(self.screen, nine, color)
-            pg.gfxdraw.rectangle(self.screen, period, color)
-            pg.gfxdraw.rectangle(self.screen, zero, color)
-            pg.gfxdraw.rectangle(self.screen, submitBtn, color)
-            pg.gfxdraw.rectangle(self.screen, deleteBtn, color)
-        
             textpos = oneNum.get_rect()
-            textpos.centerx = one.centerx
-            textpos.centery = one.centery
+            textpos.centerx = self.one.centerx
+            textpos.centery = self.one.centery
             self.screen.blit(oneNum, textpos)
             textpos = twoNum.get_rect()
-            textpos.centerx = two.centerx
-            textpos.centery = two.centery
+            textpos.centerx = self.two.centerx
+            textpos.centery = self.two.centery
             self.screen.blit(twoNum, textpos)
             textpos = threeNum.get_rect()
-            textpos.centerx = three.centerx
-            textpos.centery = three.centery
+            textpos.centerx = self.three.centerx
+            textpos.centery = self.three.centery
             self.screen.blit(threeNum, textpos)
             textpos = fourNum.get_rect()
-            textpos.centerx = four.centerx
-            textpos.centery = four.centery
+            textpos.centerx = self.four.centerx
+            textpos.centery = self.four.centery
             self.screen.blit(fourNum, textpos)
             textpos = fiveNum.get_rect()
-            textpos.centerx = five.centerx
-            textpos.centery = five.centery
+            textpos.centerx = self.five.centerx
+            textpos.centery = self.five.centery
             self.screen.blit(fiveNum, textpos)
             textpos = sixNum.get_rect()
-            textpos.centerx = six.centerx
-            textpos.centery = six.centery
+            textpos.centerx = self.six.centerx
+            textpos.centery = self.six.centery
             self.screen.blit(sixNum, textpos)
             textpos = sevenNum.get_rect()
-            textpos.centerx = seven.centerx
-            textpos.centery = seven.centery
+            textpos.centerx = self.seven.centerx
+            textpos.centery = self.seven.centery
             self.screen.blit(sevenNum, textpos)
             textpos = eightNum.get_rect()
-            textpos.centerx = eight.centerx
-            textpos.centery = eight.centery
+            textpos.centerx = self.eight.centerx
+            textpos.centery = self.eight.centery
             self.screen.blit(eightNum, textpos)
             textpos = nineNum.get_rect()
-            textpos.centerx = nine.centerx
-            textpos.centery = nine.centery
+            textpos.centerx = self.nine.centerx
+            textpos.centery = self.nine.centery
             self.screen.blit(nineNum, textpos)
             textpos = periodNum.get_rect()
-            textpos.centerx = period.centerx
-            textpos.centery = period.centery - 10
+            textpos.centerx = self.period.centerx
+            textpos.centery = self.period.centery - 10
             self.screen.blit(periodNum, textpos)
             textpos = zeroNum.get_rect()
-            textpos.centerx = zero.centerx
-            textpos.centery = zero.centery
+            textpos.centerx = self.zero.centerx
+            textpos.centery = self.zero.centery
             self.screen.blit(zeroNum, textpos)
             textpos = submit.get_rect()
-            textpos.centerx = submitBtn.centerx
-            textpos.centery = submitBtn.centery
+            textpos.centerx = self.submitBtn.centerx
+            textpos.centery = self.submitBtn.centery
             self.screen.blit(submit, textpos)
             self.screen.blit(newRangeText, (5,195))
-            self.screen.blit(value, (5,215))
             self.screen.blit(title, (50,10))
-                
-  
+
+    def numpad_event(self, lowUp, ulrange, cal):
+        newValue = ""
+        self.numpad_event_screen(lowUp, ulrange, cal)
+        print("prints screen")
+        color = pg.Color("yellow")
+        while(1):
+            pg.display.update() 
+            myfont = pg.font.SysFont("monospace", 15)
+            value = myfont.render(newValue, 1, color)
+            self.screen.blit(value, (5,215))
+            
             pg.display.update()
             pg.event.clear()
             pg.event.wait()
@@ -1280,32 +1257,33 @@ class App(object):
                     if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
                         sys.exit()
                     elif event.type == pg.MOUSEBUTTONDOWN:
-                        if one.collidepoint(event.pos):
+                        if self.one.collidepoint(event.pos):
                             newValue = newValue + "1"
-                        elif two.collidepoint(event.pos):
+                        elif self.two.collidepoint(event.pos):
                             newValue = newValue + "2"
-                        elif three.collidepoint(event.pos):
+                        elif self.three.collidepoint(event.pos):
                             newValue = newValue + "3"
-                        elif four.collidepoint(event.pos):
+                        elif self.four.collidepoint(event.pos):
                             newValue = newValue + "4"
-                        elif five.collidepoint(event.pos):
+                        elif self.five.collidepoint(event.pos):
                             newValue = newValue + "5"
-                        elif six.collidepoint(event.pos):
+                        elif self.six.collidepoint(event.pos):
                             newValue = newValue + "6"
-                        elif seven.collidepoint(event.pos):
+                        elif self.seven.collidepoint(event.pos):
                             newValue = newValue + "7"
-                        elif eight.collidepoint(event.pos):
+                        elif self.eight.collidepoint(event.pos):
                             newValue = newValue + "8"
-                        elif nine.collidepoint(event.pos):
+                        elif self.nine.collidepoint(event.pos):
                             newValue = newValue + "9"
-                        elif period.collidepoint(event.pos):
+                        elif self.period.collidepoint(event.pos):
                             newValue = newValue + "."
-                        elif zero.collidepoint(event.pos):
+                        elif self.zero.collidepoint(event.pos):
                             newValue = newValue + "0"
-                        elif deleteBtn.collidepoint(event.pos):
+                        elif self.deleteBtn.collidepoint(event.pos):
                             newValue = newValue[:-1]
                             self.screen.fill((0,0,0))
-                        elif submitBtn.collidepoint(event.pos):
+                            self.numpad_event_screen(lowUp, ulrange, cal)
+                        elif self.submitBtn.collidepoint(event.pos):
                                     if cal is 0:
                                         cfg[ulrange][str(self.sensor)] = newValue
                                         for part in self.sensorList:
@@ -1339,10 +1317,8 @@ class App(object):
                                             yaml.dump(cfg, f)
                                     else:
                                         self.calNum = newValue
-                                    newValue = ""
                                     return
                         elif self.backBtn.collidepoint(event.pos):
-                            newValue = ""
                             return
                     #except:
                     #continue
@@ -1359,7 +1335,9 @@ class App(object):
                     elif event.type == pg.MOUSEBUTTONDOWN:
                         if self.btmLeftSmall.collidepoint(event.pos):
                             self.sensor = sensorTag
+                            print("gets in after btn")
                             self.numpad_event("Low", "lowRange", 0)
+                            print("returns")
                         elif self.middleBtnSmall.collidepoint(event.pos):
                             #this doesn't actually work...
                             """try:
@@ -1407,8 +1385,6 @@ class App(object):
                             self.numpad_event("High", "highRange", 0)
                         elif self.backBtn.collidepoint(event.pos):
                             return
-                    elif event.type in (pg.KEYUP, pg.KEYDOWN):
-                        self.keys = pg.key.get_pressed()
                     #except:
                     #continue
 
@@ -1416,7 +1392,7 @@ class App(object):
     def main_loop(self):
         t2 = Thread(target=App.checkTime_loop, args=(self,))
         t2.start()
-        while(1):
+        while(self.done == False):
             pg.event.clear()
             self.main_menu_screen()
             pg.display.update()     
@@ -1445,8 +1421,7 @@ def main():
     pg.init()
     pg.display.set_caption(CAPTION)
     pg.display.set_mode(SCREEN_SIZE)
-    #TESTING
-    #pg.display.toggle_fullscreen()
+    #TESTING pg.display.toggle_fullscreen()
     App().main_loop()
     pg.quit()
     sys.exit()
@@ -1463,4 +1438,6 @@ if __name__ == "__main__":
 #TODO add a shortcut to program on the home screen of pi
 
 #TODO create classes
-#TODO refactor for event driven programming
+#TODO create linear reading for calibration screens (simpler to understand)
+#TODO boot on start (redo, no longer works...)
+#TODO move all screen references into screen class, easier to read TouchScreen class
