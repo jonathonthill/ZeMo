@@ -2,10 +2,10 @@
 
 import RPi.GPIO as GPIO
 import serial # Required for communication with boards
-import smtplib, email
 import socket, struct, fcntl
 import time
-from email.mime.text import MIMEText
+import Emailer
+from Emailer import *
 import yaml
 import os, sys, re
 import requests
@@ -26,7 +26,7 @@ class Sensors(object):
     probeType = "";
     url = "";
     values = "";
-    
+    emailer = Emailer()
     # Upload values
     mimeType = 'multipart/form-data'
 
@@ -116,6 +116,8 @@ class Sensors(object):
                 #Emails all the reads if out of range, including the ones that were trimmed
                 self.checkAlarms(avgRead, reads2)
                 outFile = open(self.fileName, 'a')
+                file2 = self.fileName[:-4]
+                outFileLog = open(file2 + "_log.csv", 'a')
                 if self.units != None:
                     reads.append(str(self.probe) + ": " + str(round(avgRead, 1)) + " " + self.units)
                 else:
@@ -123,8 +125,12 @@ class Sensors(object):
                 outFile.write(str(t * 1000) + "," + str(self.lowRange) + ";" + str(round(avgRead, 1)) + ";" + str(self.highRange))
                 outFile.write("\n")
                 outFile.close()
+                outFileLog.write(str(t * 1000) + "," + str(self.lowRange) + ";" + str(round(avgRead, 1)) + ";" + str(self.highRange))
+                outFileLog.write("\n")
+                outFileLog.close()
+                #TODO edit this to allow the posting of data, work with Josh on this
                 files = {'postedFile': (self.fileName, open(self.fileName, 'rb'), self.mimeType)}
-                r = requests.post(self.url, data = self.values, files = files)
+                r = requests.post(self.url, data = self.values)#, files = files)
                 return_data = "\t".join(str(reads))
                 self.limitLines()
             except Exception as e:
@@ -159,7 +165,14 @@ class Sensors(object):
         f = open(self.fileName)
         test = f.readlines()
         if self.readsPerDay > 0 and self.daysToKeep > 0:
-            lines = (int(self.readsPerDay) * int(self.daysToKeep))
+            daysKept = int(self.daysToKeep)
+            # if limiting to 6 months regardless of amount reads per day, add next two lines:
+            #if daysKept > 183:
+            #    daysKept = 183
+            lines = (int(self.readsPerDay) * daysKept)
+            # Limits file to the server size of 6 months worth of data
+            if lines > 4400:
+                lines = 4400
             if len(test) > lines:
                 deleteLines = len(test) - lines
                 del test[:deleteLines]
@@ -171,44 +184,16 @@ class Sensors(object):
 	# Checks the values and opens notify() if values are out of range, the ooR occurs here
     def checkAlarms(self, avgRead, reads):
         if avgRead > float(self.highRange) or avgRead < float(self.lowRange):
-            self.notify(reads)
+            self.emailer.sendEmail(reads, self.recipients, 
+                                   "The fish system is out of range. Current values for " + str(self.name) + " are:\n",
+                                   'Fish Parameters Out of Range')
+            #self.notify(reads)
             return
 
     # Tests to make sure probes are working
     def testProbes(self):
         self.getRead()
 
-	# Sends notification email if values are out of range
-    def notify(self, reads):
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sockfd = sock.fileno()
-            SIOCGIFADDR = 0x8915
-            #TODO add email info here
-            SMTP_SERVER = 'smtp.gmail.com'
-            SMTP_PORT = 587
-            SMTP_USERNAME = "username" #email username
-            SMTP_PASSWORD = "password" #your email password
-            SMTP_FROM = example@email.com #sends from this email address
-            print("send email")
-
-            for address in self.recipients:
-                SMTP_TO = address
-
-                mailer = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-                mailer.ehlo()
-                mailer.starttls()
-                mailer.login(SMTP_USERNAME, SMTP_PASSWORD)
-
-                msg = MIMEText("The fish system is out of range. Current values for " + str(self.name) + " are:\n" + " \n".join(reads))
-                msg['Subject'] = 'Fish Parameters Out of Range'
-                msg['To'] = SMTP_TO
-                msg['From'] = SMTP_FROM
-
-                mailer.send_message(msg)
-                mailer.quit()
-        except Exception as e:
-            print("Did not send email")
 
     # Add an email to the list
     def addEmail(self):
