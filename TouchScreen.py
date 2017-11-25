@@ -145,8 +145,6 @@ class App(object):
         self.sensor = ""
         self.takeReadFlag = True
         self.calNum = "-1111"
-        self.pHCalStep = -1
-        self.pHPtCal = -1
         self.update_reads_per_day()
         self.emailer.sendEmail("" , addressList, 
                                """This is a test email to ensure you will actually receive an email should the sensors detect a reading out of range.""",
@@ -281,12 +279,12 @@ class App(object):
         time.sleep(2)
         self.viewScreen.fill((0,0,0))
         pg.display.update()
+        pg.event.clear()        
         return False
 
     # pH Calibration
     def pH_calibrate(self):
         try:
-            pg.display.update()
             myfont = pg.font.SysFont("monospace", 20)
             color = pg.Color("yellow")
             myfont.set_underline(True)
@@ -351,136 +349,121 @@ class App(object):
             midPt = ""
             lowPt = ""
             highPt = ""
-            while(1):
-                pg.gfxdraw.rectangle(self.viewScreen, self.backBtn, color)
-                pg.draw.polygon(self.viewScreen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
-                pg.gfxdraw.rectangle(self.viewScreen, self.btmRight, color)
-                if self.pHPtCal == -1:
-                    pg.gfxdraw.rectangle(self.viewScreen, self.btmLeft, color)
-                    pg.gfxdraw.rectangle(self.viewScreen, self.middleBtn, color)
-                    self.viewScreen.blit(singlePt, singlePtpos)
-                    self.viewScreen.blit(dualPt, dualPtpos)
-                    self.viewScreen.blit(triPt, triPtpos)
-                else:
-                    self.viewScreen.blit(part1Cal, part1pos)
-                self.viewScreen.blit(titleScreen, titlepos)
-                pg.event.clear()
-                pg.display.update()     
-                pg.event.wait() 
-                for event in pg.event.get():                
-                        if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
-                            self.done = True
-                            return
-                        elif event.type == pg.MOUSEBUTTONDOWN:
-                            # Determine the Pt Calibration
-                            if self.pHPtCal == -1:
-                                if self.btmRight.collidepoint(event.pos):
-                                    self.pHPtCal = 3
-                                    self.viewScreen.fill((0,0,0))
-                                elif self.btmLeft.collidepoint(event.pos):
-                                    self.pHPtCal = 2
-                                    self.viewScreen.fill((0,0,0))
-                                elif self.middleBtn.collidepoint(event.pos):
-                                    self.pHPtCal = 1
-                                    self.viewScreen.fill((0,0,0))
-                            elif self.btmRight.collidepoint(event.pos):
-                                if self.ph.i2cAddress != -1:
-                                    if self.pHCalStep == -1:
-                                        if self.calNum == "-1111":
-                                            self.numpad_event("Enter MidPt","",1)
-                                            continue
-                                        elif self.calNum != "-1111":
-                                                midPt = self.calNum
-                                                self.calNum = "-1111"
-                                                self.pHCalStep = 1
-                                                self.viewScreen.fill((0,0,0))
-                                                self.viewScreen.blit(part1Cal, part1pos)
-                                                self.viewScreen.blit(step1, step1pos)
-                                                self.viewScreen.blit(step2, step2pos)
-                                                self.viewScreen.blit(step3, step3pos)
-                                                self.viewScreen.blit(step5, step5pos)
-                                                pg.display.update()
-                                    elif self.pHCalStep == 1:
-                                        if self.tryThree('CAL,mid,' + str(midPt), self.ph):
-                                            self.pHCalStep = 2
+            phPtCal = -1
+            phStepNum = -1
+            self.viewScreen.fill((0,0,0))
+            if(self.readingNow == False):
+                while(1):
+                    pg.gfxdraw.rectangle(self.viewScreen, self.backBtn, color)
+                    pg.draw.polygon(self.viewScreen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
+                    pg.gfxdraw.rectangle(self.viewScreen, self.btmRight, color)
+                    if phPtCal == -1:
+                        pg.gfxdraw.rectangle(self.viewScreen, self.btmLeft, color)
+                        pg.gfxdraw.rectangle(self.viewScreen, self.middleBtn, color)
+                        self.viewScreen.blit(singlePt, singlePtpos)
+                        self.viewScreen.blit(dualPt, dualPtpos)
+                        self.viewScreen.blit(triPt, triPtpos)
+                    else:
+                        self.viewScreen.blit(part1Cal, part1pos)
+                    self.viewScreen.blit(titleScreen, titlepos)
+                    pg.event.clear()
+                    pg.display.update()     
+                    pg.event.wait()
+                    if(self.readingNow == False):
+                        for event in pg.event.get():                
+                                if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
+                                    self.done = True
+                                    return
+                                elif event.type == pg.MOUSEBUTTONDOWN:
+                                    # Determine the Pt Calibration
+                                    if phPtCal == -1:
+                                        if self.btmRight.collidepoint(event.pos):
+                                            phPtCal = 3
                                             self.viewScreen.fill((0,0,0))
-                                            self.viewScreen.blit(successfulCal, successfulCalpos)
-                                            pg.display.update()
-                                            time.sleep(1)
-                                            if self.pHPtCal == 1:
-                                                self.calNum = "-1111"
-                                                self.pHCalStep = -1
-                                                self.pHPtCal = -1
-                                                return
-                                    elif self.pHCalStep == 2:
-                                        if self.calNum == "-1111":
-                                            self.numpad_event("Enter LowPt","",1)
-                                            continue
-                                        elif self.calNum != "-1111":
-                                                lowPt = self.calNum
-                                                self.calNum = "-1111"
-                                                self.pHCalStep = 3
-                                                self.viewScreen.fill((0,0,0))
-                                                self.viewScreen.blit(part1Cal, part1pos)
-                                                self.viewScreen.blit(step4, step4pos)
-                                                self.viewScreen.blit(step2, step2pos)
-                                                self.viewScreen.blit(step3, step3pos)
-                                                self.viewScreen.blit(step5, step5pos)
-                                    elif self.pHCalStep == 3:
-                                        if self.tryThree('CAL,low,' + lowPt, self.ph):
+                                        elif self.btmLeft.collidepoint(event.pos):
+                                            phPtCal = 2
                                             self.viewScreen.fill((0,0,0))
-                                            self.viewScreen.blit(successfulCal, successfulCalpos)
-                                            pg.display.update()
-                                            time.sleep(1)
-                                            self.pHCalStep = 4
-                                            if self.pHPtCal == 2:
-                                                self.calNum = "-1111"
-                                                self.pHCalStep = -1
-                                                self.pHPtCal = -1
-                                                return
-                                    elif self.pHCalStep == 4:
-                                        if self.calNum == "-1111":
-                                            self.numpad_event("Enter HighPt","",1)
-                                            continue
-                                        elif self.calNum != "-1111":
-                                                highPt = self.calNum
-                                                self.calNum = "-1111"
-                                                self.pHCalStep = 5
-                                                self.viewScreen.fill((0,0,0))
-                                                self.viewScreen.blit(part1Cal, part1pos)
-                                                self.viewScreen.blit(step4, step4pos)
-                                                self.viewScreen.blit(step2, step2pos)
-                                                self.viewScreen.blit(step3, step3pos)
-                                                self.viewScreen.blit(step5, step5pos)
-                                    elif self.pHCalStep == 5:
-                                        if self.tryThree('CAL,high,' + highPt, self.ph):
+                                        elif self.middleBtn.collidepoint(event.pos):
+                                            phPtCal = 1
                                             self.viewScreen.fill((0,0,0))
-                                            self.viewScreen.blit(successfulCal, successfulCalpos)
-                                            pg.display.update()
-                                            time.sleep(1)
-                                            self.calNum = "-1111"
-                                            self.pHCalStep = -1
-                                            self.pHPtCal = -1
-                                            return
-                            elif self.backBtn.collidepoint(event.pos):
-                                self.calNum = "-1111"
-                                self.pHCalStep = -1
-                                self.pHPtCal = -1
-                                return
+                                    elif self.btmRight.collidepoint(event.pos):
+                                        if self.ph.i2cAddress != -1:
+                                            if phStepNum == -1:
+                                                    self.numpad_event("Enter MidPt","",1)
+                                                    midPt = self.calNum
+                                                    self.calNum = "-1111"
+                                                    phStepNum = 1
+                                                    self.viewScreen.fill((0,0,0))
+                                                    self.viewScreen.blit(part1Cal, part1pos)
+                                                    self.viewScreen.blit(step1, step1pos)
+                                                    self.viewScreen.blit(step2, step2pos)
+                                                    self.viewScreen.blit(step3, step3pos)
+                                                    self.viewScreen.blit(step5, step5pos)
+                                                    pg.display.update()
+                                            elif phStepNum == 1:
+                                                if self.tryThree('CAL,mid,' + str(midPt), self.ph):
+                                                    phStepNum = 2
+                                                    self.viewScreen.fill((0,0,0))
+                                                    self.viewScreen.blit(successfulCal, successfulCalpos)
+                                                    pg.display.update()
+                                                    time.sleep(1)
+                                                    if phPtCal == 1:
+                                                        self.calNum = "-1111"
+                                                        return
+                                            elif phStepNum == 2:
+                                                    self.numpad_event("Enter LowPt","",1)
+                                                    lowPt = self.calNum
+                                                    self.calNum = "-1111"
+                                                    phStepNum = 3
+                                                    self.viewScreen.fill((0,0,0))
+                                                    self.viewScreen.blit(part1Cal, part1pos)
+                                                    self.viewScreen.blit(step4, step4pos)
+                                                    self.viewScreen.blit(step2, step2pos)
+                                                    self.viewScreen.blit(step3, step3pos)
+                                                    self.viewScreen.blit(step5, step5pos)
+                                            elif phStepNum == 3:
+                                                if self.tryThree('CAL,low,' + lowPt, self.ph):
+                                                    self.viewScreen.fill((0,0,0))
+                                                    self.viewScreen.blit(successfulCal, successfulCalpos)
+                                                    pg.display.update()
+                                                    time.sleep(1)
+                                                    phStepNum = 4
+                                                    if phPtCal == 2:
+                                                        self.calNum = "-1111"
+                                                        return
+                                            elif phStepNum == 4:
+                                                    self.numpad_event("Enter HighPt","",1)
+                                                    highPt = self.calNum
+                                                    self.calNum = "-1111"
+                                                    phStepNum = 5
+                                                    self.viewScreen.fill((0,0,0))
+                                                    self.viewScreen.blit(part1Cal, part1pos)
+                                                    self.viewScreen.blit(step4, step4pos)
+                                                    self.viewScreen.blit(step2, step2pos)
+                                                    self.viewScreen.blit(step3, step3pos)
+                                                    self.viewScreen.blit(step5, step5pos)
+                                            elif phStepNum == 5:
+                                                if self.tryThree('CAL,high,' + highPt, self.ph):
+                                                    self.viewScreen.fill((0,0,0))
+                                                    self.viewScreen.blit(successfulCal, successfulCalpos)
+                                                    pg.display.update()
+                                                    time.sleep(1)
+                                                    self.calNum = "-1111"
+                                                    return
+                                    elif self.backBtn.collidepoint(event.pos):
+                                        self.calNum = "-1111"
+                                        return
         except:
             self.viewScreen.fill((0,0,0))
             self.viewScreen.blit(failCal, failCalpos)
             pg.display.update()
             time.sleep(1)
             self.calNum = "-1111"
-            self.pHCalStep = -1
-            self.pHPtCal = -1
             return
 
-    # Conductivity Calibration
+    # Conductivity Calibration - currently only has single point calibration, 2-pt cal exists and may be added in the future
     def cond_calibrate(self):
         try:
-            pg.display.update()
             myfont = pg.font.SysFont("monospace", 20)
             color = pg.Color("yellow")
             myfont.set_underline(True)
@@ -533,78 +516,79 @@ class App(object):
 
             condCal = ""
             stepNum = 0
-
-            while(1):
-                pg.gfxdraw.rectangle(self.viewScreen, self.backBtn, color)
-                pg.draw.polygon(self.viewScreen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
-                pg.gfxdraw.rectangle(self.viewScreen, self.btmRight, color)
-                self.viewScreen.blit(titleScreen, titlepos)
-                self.viewScreen.blit(calibText, calibTextpos)
-                pg.event.clear()
-                pg.display.update()     
-                pg.event.wait() 
-                for event in pg.event.get():
-                        if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
-                            self.done = True
-                            return
-                        elif event.type == pg.MOUSEBUTTONDOWN:
-                            if self.btmRight.collidepoint(event.pos):
-                                if self.conductivity.i2cAddress != -1:
-                                    if stepNum == 0:
-                                        if self.calNum == "-1111":
-                                            self.numpad_event("Cal Value","",1)
-                                            continue
-                                        elif self.calNum != "-1111":
-                                            if self.tryThree('CAL,clear', self.conductivity):
-                                                stepNum = 1
-                                                condCal = str(self.calNum)
-                                                self.viewScreen.fill((0,0,0))
-                                                self.viewScreen.blit(step4, step4pos)
-                                    elif stepNum == 1:
-                                        if self.tryThree('CAL,dry', self.conductivity):
-                                            stepNum = 2
-                                            self.viewScreen.fill((0,0,0))
-                                            self.viewScreen.blit(successfulCal, successfulCalpos)
-                                            pg.display.update()
-                                            time.sleep(1)
-                                            self.viewScreen.fill((0,0,0))
-                                            self.viewScreen.blit(step2, step2pos)
-                                            self.viewScreen.blit(step3, step3pos)
-                                            self.viewScreen.blit(step1, step1pos)
-                                            pg.display.update()                 
-                                    elif stepNum == 2:
-                                            self.viewScreen.fill((0,0,0))
-                                            self.viewScreen.blit(step6, step6pos)
-                                            pg.display.update()
-                                            highCal = int(self.calNum) * 1.4
-                                            lowCal = int(self.calNum) * .6
-                                            hCal = 0.0
-                                            lCal = 0.0
-                                            lCal = float(lowCal)
-                                            hCal = float(highCal)
-                                            tempRead = 0.0
-                                            # Takes reads until 2 consecutive
-                                            # reads within the 40% variance are
-                                            # less than 10 apart
-                                            for i in range(0,15):
-                                                if(stepNum != 3):
-                                                    calRead = self.conductivity.getRead()
-                                                    if tempRead < hCal and tempRead > lCal:
-                                                        if((float(calRead) - tempRead) < 10):
-                                                            stepNum = 3 
-                                                    tempRead = float(calRead)
-                                    if stepNum == 3:
-                                        if self.tryThree('CAL,' + condCal, self.conductivity):
-                                            stepNum = 4
-                                            self.viewScreen.fill((0,0,0))
-                                            self.viewScreen.blit(successfulCal, successfulCalpos)
-                                            pg.display.update()
-                                            time.sleep(1)
-                                            self.calNum = "-1111"
-                                            return
-                            elif self.backBtn.collidepoint(event.pos):
-                                self.calNum = "-1111"
-                                return
+            self.viewScreen.fill((0,0,0))
+            if(self.readingNow == False):
+                while(1):
+                    pg.gfxdraw.rectangle(self.viewScreen, self.backBtn, color)
+                    pg.draw.polygon(self.viewScreen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
+                    pg.gfxdraw.rectangle(self.viewScreen, self.btmRight, color)
+                    self.viewScreen.blit(titleScreen, titlepos)
+                    self.viewScreen.blit(calibText, calibTextpos)
+                    pg.event.clear()
+                    pg.display.update()     
+                    pg.event.wait()
+                    if(self.readingNow == False):
+                        for event in pg.event.get():
+                                if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
+                                    self.done = True
+                                    return
+                                elif event.type == pg.MOUSEBUTTONDOWN:
+                                    if self.btmRight.collidepoint(event.pos):
+                                        if self.conductivity.i2cAddress != -1:
+                                            if stepNum == 0:
+                                                        self.numpad_event("Cal Value","",1)
+                                                        self.viewScreen.fill((0,0,0))
+                                                        if self.tryThree('CAL,clear', self.conductivity):
+                                                            stepNum = 1
+                                                            condCal = str(self.calNum)
+                                                            self.viewScreen.fill((0,0,0))
+                                                            self.viewScreen.blit(step4, step4pos)
+                                            elif stepNum == 1:
+                                                if self.tryThree('CAL,dry', self.conductivity):
+                                                    stepNum = 2
+                                                    self.viewScreen.fill((0,0,0))
+                                                    self.viewScreen.blit(successfulCal, successfulCalpos)
+                                                    pg.display.update()
+                                                    time.sleep(1)
+                                                    self.viewScreen.fill((0,0,0))
+                                                    self.viewScreen.blit(step2, step2pos)
+                                                    self.viewScreen.blit(step3, step3pos)
+                                                    self.viewScreen.blit(step1, step1pos)
+                                                    pg.display.update()                 
+                                            elif stepNum == 2:
+                                                    self.viewScreen.fill((0,0,0))
+                                                    self.viewScreen.blit(step6, step6pos)
+                                                    pg.display.update()
+                                                    highCal = int(self.calNum) * 1.4
+                                                    lowCal = int(self.calNum) * .6
+                                                    hCal = 0.0
+                                                    lCal = 0.0
+                                                    lCal = float(lowCal)
+                                                    hCal = float(highCal)
+                                                    tempRead = 0.0
+                                                    # Takes reads until 2 consecutive
+                                                    # reads within the 40% variance are
+                                                    # less than 10 apart
+                                                    for i in range(0,15):
+                                                        if(stepNum != 3):
+                                                            calRead = self.conductivity.getRead()
+                                                            if tempRead < hCal and tempRead > lCal:
+                                                                if((float(calRead) - tempRead) < 10):
+                                                                    stepNum = 3 
+                                                            tempRead = float(calRead)
+                                                    self.viewScreen.fill((0,0,0))
+                                            if stepNum == 3:
+                                                if self.tryThree('CAL,' + condCal, self.conductivity):
+                                                    stepNum = 4
+                                                    self.viewScreen.fill((0,0,0))
+                                                    self.viewScreen.blit(successfulCal, successfulCalpos)
+                                                    pg.display.update()
+                                                    time.sleep(1)
+                                                    self.calNum = "-1111"
+                                                    return
+                                    elif self.backBtn.collidepoint(event.pos):
+                                        self.calNum = "-1111"
+                                        return
         except:
             self.viewScreen.fill((0,0,0))
             self.viewScreen.blit(failCal, failCalpos)
@@ -616,6 +600,7 @@ class App(object):
     # Temperature Calibration
     def temp_calibrate(self):
         try:
+            self.viewScreen.fill((0,0,0))
             pg.display.update()
             myfont = pg.font.SysFont("monospace", 20)
             color = pg.Color("yellow")
@@ -653,50 +638,47 @@ class App(object):
             failCalpos = failCal.get_rect()
             failCalpos.centerx = self.background.get_rect().centerx
             failCalpos.centery = self.background.get_rect().centery
-       
-            stepNum = 0
-            while(1):
-                pg.gfxdraw.rectangle(self.viewScreen, self.backBtn, color)
-                pg.draw.polygon(self.viewScreen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
-                pg.gfxdraw.rectangle(self.viewScreen, self.btmRight, color)
-                self.viewScreen.blit(titleScreen, titlepos)
-                self.viewScreen.blit(calibText, calibTextpos)
-                if self.calNum != "-1111":
-                    self.viewScreen.blit(step1, step1pos)
-                    self.viewScreen.blit(step2, step2pos)
-                    self.viewScreen.blit(step3, step3pos)                                       
-                pg.event.clear()
-                pg.display.update()     
-                pg.event.wait() 
-                for event in pg.event.get():
-                        if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
-                            self.done = True
-                            return
-                        elif event.type == pg.MOUSEBUTTONDOWN:
-                            if self.btmRight.collidepoint(event.pos):
-                                if self.temperature.i2cAddress != -1:
-                                    if stepNum == 0:
-                                        if self.calNum == "-1111":
-                                            self.numpad_event("Cal Value","",1)
-                                            continue
-                                        elif self.calNum != "-1111":
-                                            self.viewScreen.blit(step1, step1pos)
-                                            self.viewScreen.blit(step2, step2pos)
-                                            self.viewScreen.blit(step3, step3pos)
-                                            pg.display.update()
-                                            stepNum = 1
-                                    elif stepNum == 1:
-                                        if self.tryThree('CAL,clear', self.temperature):
-                                            if self.tryThree('CAL,' + str(self.calNum), self.temperature):
-                                                self.viewScreen.fill((0,0,0))
-                                                self.viewScreen.blit(successfulCal, successfulCalpos)
-                                                pg.display.update()
-                                                time.sleep(1)
-                                                self.calNum = "-1111"
-                                                return
-                            elif self.backBtn.collidepoint(event.pos):
-                                self.calNum = "-1111"
-                                return
+            if(self.readingNow == False):
+                stepNum = 0
+                while(1):
+                    self.viewScreen.fill((0,0,0))
+                    pg.gfxdraw.rectangle(self.viewScreen, self.backBtn, color)
+                    pg.draw.polygon(self.viewScreen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
+                    pg.gfxdraw.rectangle(self.viewScreen, self.btmRight, color)
+                    self.viewScreen.blit(titleScreen, titlepos)
+                    self.viewScreen.blit(calibText, calibTextpos)
+                    if self.calNum != "-1111":
+                        self.viewScreen.blit(step1, step1pos)
+                        self.viewScreen.blit(step2, step2pos)
+                        self.viewScreen.blit(step3, step3pos)                                       
+                    pg.event.clear()
+                    pg.display.update()     
+                    pg.event.wait()
+                    if(self.readingNow == False):
+                        for event in pg.event.get():
+                                if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
+                                    self.done = True
+                                    return
+                                elif event.type == pg.MOUSEBUTTONDOWN:
+                                    if self.btmRight.collidepoint(event.pos):
+                                        if self.temperature.i2cAddress != -1:
+                                            if stepNum == 0:
+                                                if self.calNum == "-1111":
+                                                    self.numpad_event("Cal Value","",1)
+                                                    self.viewScreen.fill((0,0,0))
+                                                    stepNum = 1
+                                            elif stepNum == 1:
+                                                if self.tryThree('CAL,clear', self.temperature):
+                                                    if self.tryThree('CAL,' + str(self.calNum), self.temperature):
+                                                        self.viewScreen.fill((0,0,0))
+                                                        self.viewScreen.blit(successfulCal, successfulCalpos)
+                                                        pg.display.update()
+                                                        time.sleep(1)
+                                                        self.calNum = "-1111"
+                                                        return
+                                    elif self.backBtn.collidepoint(event.pos):
+                                        self.calNum = "-1111"
+                                        return
         except:
             self.viewScreen.fill((0,0,0))
             self.viewScreen.blit(failCal, failCalpos)
@@ -707,10 +689,7 @@ class App(object):
 
     # Dissolved Oxygen Calibration
     def dOxygen_calibrate(self):
-        while(1):
             try:
-                self.viewScreen.fill((0,0,0))
-                pg.display.update()
                 myfont = pg.font.SysFont("monospace", 20)
                 color = pg.Color("yellow")
                 myfont.set_underline(True)
@@ -775,72 +754,77 @@ class App(object):
 
                 ptCals = -1
                 stepNum = 0
-                if self.calNum != "1":
-                        self.viewScreen.blit(singlePt, singlePtpos)
-                        self.viewScreen.blit(dualPt, dualPtpos)
-                pg.display.update()  
-                pg.gfxdraw.rectangle(self.viewScreen, self.backBtn, color)
-                pg.draw.polygon(self.viewScreen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
-                pg.gfxdraw.rectangle(self.viewScreen, self.btmRight, color)
-                if ptCals == -1:
-                        pg.gfxdraw.rectangle(self.viewScreen, self.btmLeft, color)
-                self.viewScreen.blit(titleScreen, titlepos)
+                self.viewScreen.fill((0,0,0))
+                while(1):                
+                    if(self.readingNow == False):
+                        if self.calNum != "1":
+                                self.viewScreen.blit(singlePt, singlePtpos)
+                                self.viewScreen.blit(dualPt, dualPtpos)
+                        pg.gfxdraw.rectangle(self.viewScreen, self.backBtn, color)
+                        pg.draw.polygon(self.viewScreen, color, ((30,17),(30,25),(30,17),(10,17),(15,23),(10,17),(15,11),(10,17)), 1)
+                        pg.gfxdraw.rectangle(self.viewScreen, self.btmRight, color)
+                        if ptCals == -1:
+                                pg.gfxdraw.rectangle(self.viewScreen, self.btmLeft, color)
+                        self.viewScreen.blit(titleScreen, titlepos)
                                        
-                pg.event.clear()
-                pg.display.update()     
-                pg.event.wait() 
-                for event in pg.event.get():
-                            if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
-                                self.done = True
-                                return
-                            elif event.type == pg.MOUSEBUTTONDOWN:
-                                # Dual Point Calibration
-                                if self.btmRight.collidepoint(event.pos):
-                                    if self.dOxygen.i2cAddress != -1:
-                                        if stepNum == 0:
-                                            if self.tryThree('CAL,clear', self.dOxygen):
-                                                ptCals = 1
-                                                stepNum = 1
-                                                self.calNum = "1"
-                                                self.viewScreen.fill((0,0,0))
-                                                self.viewScreen.blit(part1Cal, part1pos)
-                                                self.viewScreen.blit(step1, step1pos)
-                                                self.viewScreen.blit(step2, step2pos)
-                                                self.viewScreen.blit(step3, step3pos)
-                                        elif stepNum == 1:
-                                            if self.tryThree('CAL', self.dOxygen):
-                                                stepNum = 2
-                                                self.viewScreen.fill((0,0,0))
-                                                self.viewScreen.blit(successfulCal, successfulCalpos)
-                                                pg.display.update()
-                                                time.sleep(1)
-                                                self.viewScreen.fill((0,0,0))
-                                                self.viewScreen.blit(part1Cal, part1pos)
-                                                self.viewScreen.blit(step4, step4pos)
-                                                self.viewScreen.blit(step5, step5pos)
-                                                self.viewScreen.blit(step6, step6pos)
-                                        elif stepNum == 2:
-                                            if self.tryThree('CAL,0', self.dOxygen):
-                                                    self.viewScreen.fill((0,0,0))
-                                                    self.viewScreen.blit(successfulCal, successfulCalpos)
-                                                    pg.display.update()
-                                                    time.sleep(1)
-                                                    self.calNum = "-1111"
-                                                    return
-                                # Single Point Calibration
-                                elif self.btmLeft.collidepoint(event.pos):
-                                        if stepNum == 0:
-                                            if self.tryThree('CAL,clear', self.dOxygen):
-                                                ptCals = 1
-                                                stepNum = 2
-                                                self.viewScreen.fill((0,0,0))
-                                                self.viewScreen.blit(part1Cal, part1pos)
-                                                self.viewScreen.blit(step1, step1pos)
-                                                self.viewScreen.blit(step2, step2pos)
-                                                self.viewScreen.blit(step3, step3pos)
-                                elif self.backBtn.collidepoint(event.pos):
-                                    self.calNum = "-1111"
-                                    return
+                        pg.event.clear()
+                        pg.display.update()     
+                        pg.event.wait()
+                        if(self.readingNow == False):
+                            for event in pg.event.get():
+                                        if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
+                                            self.done = True
+                                            return
+                                        elif event.type == pg.MOUSEBUTTONDOWN:
+                                            # Dual Point Calibration
+                                            if self.btmRight.collidepoint(event.pos):
+                                                if self.dOxygen.i2cAddress != -1:
+                                                    if stepNum == 0:
+                                                        if self.tryThree('CAL,clear', self.dOxygen):
+                                                            ptCals = 1
+                                                            stepNum = 1
+                                                            self.calNum = "1"
+                                                            self.viewScreen.fill((0,0,0))
+                                                            self.viewScreen.blit(part1Cal, part1pos)
+                                                            self.viewScreen.blit(step1, step1pos)
+                                                            self.viewScreen.blit(step2, step2pos)
+                                                            self.viewScreen.blit(step3, step3pos)
+                                                    elif stepNum == 1:
+                                                        if self.tryThree('CAL', self.dOxygen):
+                                                            stepNum = 2
+                                                            self.viewScreen.fill((0,0,0))
+                                                            self.viewScreen.blit(successfulCal, successfulCalpos)
+                                                            pg.display.update()
+                                                            time.sleep(1)
+                                                            self.viewScreen.fill((0,0,0))
+                                                            self.viewScreen.blit(part1Cal, part1pos)
+                                                            self.viewScreen.blit(step4, step4pos)
+                                                            self.viewScreen.blit(step5, step5pos)
+                                                            self.viewScreen.blit(step6, step6pos)
+                                                    elif stepNum == 2:
+                                                        if self.tryThree('CAL,0', self.dOxygen):
+                                                                self.viewScreen.fill((0,0,0))
+                                                                self.viewScreen.blit(successfulCal, successfulCalpos)
+                                                                pg.display.update()
+                                                                time.sleep(1)
+                                                                self.calNum = "-1111"
+                                                                return
+                                            # Single Point Calibration
+                                            elif self.btmLeft.collidepoint(event.pos):
+                                                    if stepNum == 0:
+                                                        if self.tryThree('CAL,clear', self.dOxygen):
+                                                            ptCals = 1
+                                                            stepNum = 2
+                                                            self.calNum = "1"
+                                                            self.viewScreen.fill((0,0,0))
+                                                            self.viewScreen.blit(part1Cal, part1pos)
+                                                            self.viewScreen.blit(step1, step1pos)
+                                                            self.viewScreen.blit(step2, step2pos)
+                                                            self.viewScreen.blit(step3, step3pos)
+                                                            pg.display.update()
+                                            elif self.backBtn.collidepoint(event.pos):
+                                                self.calNum = "-1111"
+                                                return
             except:
                 self.viewScreen.fill((0,0,0))
                 self.viewScreen.blit(failCal, failCalpos)
@@ -861,6 +845,7 @@ class App(object):
         else:
             return cfg["highRange"][sensorTag]
 
+    # Screen shows "Taking Reads..."
     def taking_reads_loop(self):
         color = pg.Color("steelblue1")
         myfont = pg.font.SysFont("monospace", 15)  
@@ -897,7 +882,7 @@ class App(object):
     # Checks the time for taking automated reads
     def checkTime_loop(self):
         while(self.done != True):
-                #try:
+            try:
                 currMin = datetime.now().minute
                 currHour = datetime.now().hour
                 if int(currHour) < 1:
@@ -937,9 +922,9 @@ class App(object):
                     self.readingNow = False
                 elif self.waitTime < int(currMin) and self.waitTime != 0:
                     self.takeReadFlag = True
-                #except Exception as e:
-                #pass
-                #try:
+            except Exception as e:
+                pass
+            try:
                 if cfg["needUpdate"]["update"] == "yes":
                     self.createSensors()
                     cfg["needUpdate"]["update"] = "no"
@@ -956,10 +941,11 @@ class App(object):
                     for probe in self.sensorList:
                         probe.recipients = addressList
                     self.update_reads_per_day()
-                """except Exception as e:
-                pass"""
+            except Exception as e:
+                pass
                 time.sleep(50)
 
+    # Updates the list of times checked in the CheckTime() function
     def update_reads_per_day(self):
         self.timeList = []
         hours = 24 / int(self.readsPerDay)
@@ -975,7 +961,7 @@ class App(object):
                 addThis = str(round(addTime, 2))
                 self.timeList.append(addThis)
 
-    # Update range values
+    # Update range values screen
     def update_event_screen(self, sensorName, sensorTag, sensor):
             self.viewScreen.fill((0,0,0))
             myfont = pg.font.SysFont("monospace", 20)
@@ -1034,6 +1020,7 @@ class App(object):
             self.viewScreen.blit(lowRange, textpos)
             pg.display.update()     
 
+    # Numpad screen
     def numpad_event_screen(self, lowUp, ulrange, cal):
             self.viewScreen.fill((0,0,0))
             self.calNum = -1111
@@ -1142,7 +1129,7 @@ class App(object):
             self.viewScreen.blit(newRangeText, (5,195))
             self.viewScreen.blit(title, (50,10))
 
-    # The main menu
+    # The main menu screen
     def main_menu_screen(self):
             self.viewScreen.fill((0,0,0))
             myfont = pg.font.SysFont("monospace", 20)
@@ -1201,7 +1188,7 @@ class App(object):
             textpos.centery = self.background.get_rect().top + 20
             self.viewScreen.blit(titleScreen, textpos)
 
-    # Settings
+    # Settings screen
     def settings_event_screen(self):
             self.viewScreen.fill((0,0,0))
 
@@ -1268,7 +1255,7 @@ class App(object):
             textpos.centery = self.btmRight.centery + 10
             self.viewScreen.blit(readsPerDay, textpos)
 
-    # Advanced Settings
+    # Advanced Settings screen
     def advanced_settings_event_screen(self):
             self.viewScreen.fill((0,0,0))
 
@@ -1299,6 +1286,7 @@ class App(object):
             textpos.centery = self.background.get_rect().top + 20
             self.viewScreen.blit(titleScreen, textpos)
 
+    # Advanced Settings
     def advanced_settings_event(self):
         while(1):
             if(self.readingNow == False):
@@ -1308,7 +1296,7 @@ class App(object):
                 pg.event.wait()
                 if(self.readingNow == False):
                     for event in pg.event.get():
-                            #try:
+                        try:
                             if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
                                 self.done = True
                                 sys.exit()
@@ -1324,9 +1312,10 @@ class App(object):
                                     sys.exit()
                                 elif self.backBtn.collidepoint(event.pos):
                                     return
-                            #except:
-                            #continue
+                        except:
+                            continue
 
+    # Settings
     def settings_event(self):
         while(1):
             if(self.readingNow == False):
@@ -1336,7 +1325,7 @@ class App(object):
                 pg.event.wait()
                 if(self.readingNow == False):
                     for event in pg.event.get():
-                            #try:
+                        try:
                             if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
                                 self.done = True
                                 sys.exit()
@@ -1351,9 +1340,10 @@ class App(object):
                                     return
                                 elif self.settingsBtn.collidepoint(event.pos):
                                     self.advanced_settings_event()
-                            #except:
-                            #continue
+                        except:
+                            continue
 
+    # Numpad
     def numpad_event(self, lowUp, ulrange, cal):
         newValue = ""
         self.numpad_event_screen(lowUp, ulrange, cal)
@@ -1444,6 +1434,7 @@ class App(object):
             else:
                 self.numpad_event_screen(lowUp, ulrange, cal)
 
+    # Update Probe
     def update_event(self, sensorName, sensorTag, sensor):
         while(1):
             if(self.readingNow == False):
@@ -1474,7 +1465,6 @@ class App(object):
                                             pg.display.update()
                                         except:
                                             continue
-                               
                                         try:
                                             reads = sensor.takeRead()
                                             reads = reads[:-1]
@@ -1488,13 +1478,17 @@ class App(object):
                                         self.update_event_screen(sensorName, sensorTag, sensor)
                                     elif self.topLeft.collidepoint(event.pos):
                                         if sensorTag is "DO":
-                                            self.dOxygen_calibrate()
+                                            if(self.dOxygen.i2cAddress != -1):
+                                                self.dOxygen_calibrate()
                                         elif sensorTag is "PH":
-                                            self.pH_calibrate()
+                                            if(self.ph.i2cAddress != -1):
+                                                self.pH_calibrate()
                                         elif sensorTag is "T":
-                                            self.temp_calibrate()
+                                            if(self.temperature.i2cAddress != -1):
+                                                self.temp_calibrate()
                                         elif sensorTag is "EC":
-                                            self.cond_calibrate()
+                                            if(self.conductivity.i2cAddress != -1):
+                                                self.cond_calibrate()
                                     elif self.topRight.collidepoint(event.pos):
                                         if sensorTag is "DO":
                                             self.createdOxygenSensor()
@@ -1504,6 +1498,8 @@ class App(object):
                                             self.createTemperatureSensor()
                                         elif sensorTag is "EC":
                                             self.createConductivitySensor()
+                                        self.viewScreen.fill((0,0,0))
+                                        self.update_event_screen(sensorName, sensorTag, sensor)
                                     elif self.btmRightSmall.collidepoint(event.pos):
                                         self.sensor = sensorTag
                                         self.numpad_event("High", "highRange", 0)
@@ -1516,30 +1512,30 @@ class App(object):
     def main_loop(self):
         while(self.done == False):
             if(self.readingNow == False):
-                #try:
+                try:
 
-                self.main_menu_screen()
-                pg.display.update()
-                pg.event.clear()  
-                pg.event.wait() 
-                if(self.readingNow == False):
-                    for event in pg.event.get():
-                        if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
-                            self.done = True
-                            sys.exit()
-                        if event.type == pg.MOUSEBUTTONDOWN:
-                            if self.topLeft.collidepoint(event.pos):
-                                self.update_event("Conductivity", "EC", self.conductivity)
-                            elif self.topRight.collidepoint(event.pos):
-                                self.update_event("dOxygen", "DO", self.dOxygen)
-                            elif self.btmRight.collidepoint(event.pos):
-                                self.update_event("Temperature", "T", self.temperature)
-                            elif self.btmLeft.collidepoint(event.pos):
-                                self.update_event("pH", "PH", self.ph)
-                            elif self.settingsBtn.collidepoint(event.pos):
-                                self.settings_event()
-                """except:
-                continue"""
+                    self.main_menu_screen()
+                    pg.display.update()
+                    pg.event.clear()  
+                    pg.event.wait() 
+                    if(self.readingNow == False):
+                        for event in pg.event.get():
+                            if event.type == pg.QUIT or self.keys[pg.K_ESCAPE]:
+                                self.done = True
+                                sys.exit()
+                            if event.type == pg.MOUSEBUTTONDOWN:
+                                if self.topLeft.collidepoint(event.pos):
+                                    self.update_event("Conductivity", "EC", self.conductivity)
+                                elif self.topRight.collidepoint(event.pos):
+                                    self.update_event("dOxygen", "DO", self.dOxygen)
+                                elif self.btmRight.collidepoint(event.pos):
+                                    self.update_event("Temperature", "T", self.temperature)
+                                elif self.btmLeft.collidepoint(event.pos):
+                                    self.update_event("pH", "PH", self.ph)
+                                elif self.settingsBtn.collidepoint(event.pos):
+                                    self.settings_event()
+                except:
+                    continue
 
 # Initializes pygame and starts touchscreen loop
 def main():
@@ -1564,6 +1560,7 @@ if __name__ == "__main__":
 #TODO - limit character size for number input
 #TODO - clean up code
 
+#tODO - create an error log, remove all print statements
 #TODO create classes
 #TODO create linear reading for calibration screens (simpler to understand)
 #TODO boot on start (redo, no longer works...)
@@ -1571,14 +1568,17 @@ if __name__ == "__main__":
 #TODO determine information that needs to be passed and add that to function passing rather than global
 
 #TODO Thanksgiving
-#TODO - Add exit button & functionality
-#TODO - Do a log of all data from forever on the pi itself
-#TODO - Create a button for emailing the log
-#TODO - Set a max length of data kept to 6 months for the data sent to server
-#TODO - check login and post readings to website correctly
-#TODO - Calibration - add all variations of calibration
-#TODO - Locking threads
-#TODO - Do the readings - takeRead - Taking Reads screen
+#TODO - Calibration - add all variations of calibration, test that current ones work still, split all calibrations into screen and loop
+# temp functions, could be cleaner, still needs refresh of screen returning from checktime taking reads
+# ph
+# do
+# cond
+#TODO overhaul the numpad self.calNum to just return the calNum instead of passing it globally, easier in some parts
 
+#TODO - create note that our server will only take up to 6 months worth of data if taking one read an hour
+#  ask about if we should do a limit to 6 months size if they change reads per day less than 24
+#  if the user changes the reads per day to be less than 24, could they still have data loaded onto the 
+#  server for the amount of 6 months, or should I limit the data to be whatever 6 months is worth
+#TODO - check login and post readings to website correctly
 #TODO - Take pictures with instructions
 #TODO - ask about putting in a minimum for the number of reads per day at 1 per hour
